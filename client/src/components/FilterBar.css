@@ -1,0 +1,49 @@
+.filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  min-width: 80px;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-button {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  color: #666;
+}
+
+.filter-button:hover {
+  background: #e0e0e0;
+}
+
+.filter-button.active {
+  background: #0066cc;
+  color: white;
+  border-color: #0066cc;
+}

@@ -1,0 +1,90 @@
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feed-empty {
+  text-align: center;
+  padding: 48px;
+  color: #666;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.release-item {
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  border-left: 4px solid #6f42c1;
+}
+
+.release-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.release-repo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.release-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.release-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.release-repo {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.release-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.release-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.release-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  background: #f0e6ff;
+  color: #6f42c1;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.release-item h3 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.release-item h3 a {
+  color: #333;
+}
+
+.release-body {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #666;
+}
