@@ -10,6 +10,7 @@
     "start": "npm run start --prefix server"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "playwright": "^1.57.0"
   }
 }

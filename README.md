@@ -1,54 +1,64 @@
 # GitHub Feed
 
-Monitor GitHub repositories and get LLM-classified summaries of changes. Track PRs, releases, and significant updates across multiple repos in one unified feed.
+**Stop missing important updates in the repos you care about.**
+
+GitHub Feed monitors repositories and uses AI to surface what matters: new features, breaking changes, security fixes, and more—all in one unified feed.
+
+![GitHub Feed Interface](docs/screenshots/feed-view.png)
+
+## Why?
+
+Watching GitHub repos gives you a firehose of commits. Release notes are often incomplete or delayed. GitHub Feed solves this by:
+
+- **Analyzing merged PRs** with AI to extract meaningful changes
+- **Classifying by impact** (major, minor, patch, internal) so you see what matters
+- **Categorizing changes** (feature, bugfix, breaking, security, etc.)
+- **Summarizing in plain English** with bullet points, not commit messages
+
+Perfect for teams tracking dependencies, educators monitoring teaching materials, or anyone who needs to stay current with multiple repos.
 
 ## Features
 
-- **Smart Classification**: Uses OpenAI to categorize changes (feature, bugfix, breaking, etc.) and rate significance (major, minor, patch, internal)
-- **Unified Feed**: View changes from all repos in one place, sorted by date
-- **Per-Repo Settings**: Customize display name, color, and which significance levels appear in the feed
-- **Starred Changes**: Save important changes for later reference
-- **Releases Feed**: Dedicated view for tracking releases
+| Feature | Description |
+|---------|-------------|
+| **Smart Classification** | AI categorizes each PR by type and significance |
+| **Unified Feed** | All repos in one chronological view |
+| **Filtering** | Show only major changes, or filter by category |
+| **Per-Repo Settings** | Custom colors, names, and feed preferences |
+| **Starred Changes** | Save important updates for later |
+| **Releases Feed** | Dedicated view for version releases |
 
-## Setup
+## Quick Start
 
-1. Install dependencies:
+1. **Install & run:**
    ```bash
    npm install
-   ```
-
-2. Start the development server:
-   ```bash
    npm run dev
    ```
 
-3. Open http://localhost:5173 and configure your API keys in Settings:
-   - **OpenAI API Key** - For classifying changes
-   - **GitHub Token** - For higher API rate limits (5,000 vs 60 requests/hour)
+2. **Configure API keys** (Settings button):
 
-## GitHub Token
+   ![Settings](docs/screenshots/settings-modal.png)
 
-You need a GitHub Personal Access Token to avoid rate limiting.
+3. **Add a repo to track:**
 
-### Fine-grained token (recommended)
-1. Go to https://github.com/settings/tokens?type=beta
-2. Click "Generate new token"
-3. Name it (e.g., "GitHub Feed")
-4. Under "Repository access", select the repos you want to track (or "All repositories")
-5. Under "Repository permissions", set **Contents** to "Read-only"
-6. Generate and copy the token
+   ![Add Repository](docs/screenshots/add-repo-modal.png)
 
-### Classic token
-1. Go to https://github.com/settings/tokens
-2. Click "Generate new token (classic)"
-3. Select the `public_repo` scope (or `repo` for private repos)
-4. Generate and copy the token
+## API Keys Required
 
-> **Note:** GitHub tokens expire. Fine-grained tokens default to 30 days. Set a calendar reminder to regenerate your token before it expires.
+| Key | Purpose | Get it at |
+|-----|---------|-----------|
+| **OpenAI API Key** | Classifies PR changes | [platform.openai.com](https://platform.openai.com/api-keys) |
+| **GitHub Token** | Higher rate limits (5k/hr vs 60/hr) | [github.com/settings/tokens](https://github.com/settings/tokens) |
+
+> **Note:** GitHub tokens expire. Fine-grained tokens default to 30 days.
 
 ## Tech Stack
 
-- **Frontend**: React + Vite + TypeScript
-- **Backend**: Node.js + Express + TypeScript
-- **GitHub API**: Octokit
-- **LLM**: OpenAI API (gpt-4o-mini)
+- **Frontend:** React + Vite + TypeScript
+- **Backend:** Node.js + Express + TypeScript
+- **APIs:** GitHub (Octokit), OpenAI (gpt-4o-mini)
+
+## License
+
+MIT
