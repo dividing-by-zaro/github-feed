@@ -1,3 +1,4 @@
+import { Infinity, Star, Rocket } from 'lucide-react';
 import type { Repo } from '../types';
 import './Sidebar.css';
 
@@ -29,19 +30,22 @@ export default function Sidebar({
           className={`sidebar-item ${isViewActive('all') ? 'active' : ''}`}
           onClick={() => onSelectView('all')}
         >
+          <Infinity size={16} />
           All Repos
         </button>
         <button
           className={`sidebar-item ${isViewActive('starred') ? 'active' : ''}`}
           onClick={() => onSelectView('starred')}
         >
-          ⭐ Starred
+          <Star size={16} />
+          Starred
         </button>
         <button
           className={`sidebar-item ${isViewActive('releases') ? 'active' : ''}`}
           onClick={() => onSelectView('releases')}
         >
-          🏷️ Releases
+          <Rocket size={16} />
+          Releases
         </button>
       </nav>
 

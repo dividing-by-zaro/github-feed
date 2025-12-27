@@ -11,6 +11,7 @@ A web app that monitors GitHub repositories and uses LLM to classify/summarize c
 - **GitHub API**: Octokit
 - **LLM**: OpenAI API (gpt-4o-mini)
 - **Styling**: Plain CSS
+- **Icons**: lucide-react
 - **Database**: PostgreSQL (Railway) + Prisma 7
 - **Auth**: Google OAuth via Passport.js
 
@@ -29,6 +30,8 @@ npm run dev:client
 # Run only server (port 3001)
 npm run dev:server
 ```
+
+**Restart preference**: When asked to restart the dev servers, just run `npm run dev` without checking if they started successfully.
 
 ## Project Structure
 
@@ -61,6 +64,8 @@ github-feed/
 - **Shared indexing layer**: Global tables (`GlobalRepo`, `GlobalFeedGroup`, `GlobalRelease`) store indexed data once; users subscribe via `UserRepo` with custom settings
 - **Per-user settings**: Each user's repo subscription has custom color, display name, and significance filter (stored in `UserRepo`)
 - **Timeline view with date grouping**: Feed items grouped by date with sticky DateHeader components and GapIndicator showing time gaps between updates
+- **Page header with filters**: Title shows current view (All Repos/Starred/Releases/repo name) with dropdown filters inline
+- **Dropdown filters**: FilterBar uses dropdown menus with checkboxes for multi-select (levels & categories)
 
 ## Database Schema
 

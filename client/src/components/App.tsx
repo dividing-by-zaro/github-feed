@@ -44,6 +44,7 @@ export default function App() {
   const [selectedRelease, setSelectedRelease] = useState<{ release: Release; repoName: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const [filterSignificance, setFilterSignificance] = useState<Significance[]>(
     user?.visibleSignificance as Significance[] || ['major', 'minor']
@@ -360,12 +361,27 @@ export default function App() {
             </button>
           )}
           <button onClick={() => setShowAddModal(true)}>Add Repo</button>
-          <button onClick={logout} className="logout-btn">
-            {user.avatarUrl && (
-              <img src={user.avatarUrl} alt="" className="user-avatar" />
+          <div className="user-menu-container">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="user-menu-btn"
+            >
+              {user.avatarUrl && (
+                <img src={user.avatarUrl} alt="" className="user-avatar" />
+              )}
+              <span className="user-name">{user.name?.split(' ')[0] || 'User'}</span>
+            </button>
+            {showUserMenu && (
+              <>
+                <div className="user-menu-backdrop" onClick={() => setShowUserMenu(false)} />
+                <div className="user-menu-dropdown">
+                  <button onClick={() => { logout(); setShowUserMenu(false); }}>
+                    Logout
+                  </button>
+                </div>
+              </>
             )}
-            Logout
-          </button>
+          </div>
         </div>
       </header>
 
@@ -393,16 +409,30 @@ export default function App() {
             </div>
           )}
 
-          {!selectedRepoId && (
-            <FilterBar
-              selectedSignificance={filterSignificance}
-              selectedCategories={filterCategories}
-              showReleases={showReleases}
-              onSignificanceChange={setFilterSignificance}
-              onCategoriesChange={setFilterCategories}
-              onShowReleasesChange={setShowReleases}
-            />
-          )}
+          <div className="page-header">
+            <h1 className="page-title">
+              {selectedRepoId
+                ? repos.find((r) => r.id === selectedRepoId)?.displayName ||
+                  repos.find((r) => r.id === selectedRepoId)?.name ||
+                  'Repository'
+                : viewMode === 'starred'
+                  ? 'Starred'
+                  : viewMode === 'releases'
+                    ? 'Releases'
+                    : 'All Repos'}
+            </h1>
+
+            {!selectedRepoId && viewMode !== 'releases' && (
+              <FilterBar
+                selectedSignificance={filterSignificance}
+                selectedCategories={filterCategories}
+                showReleases={showReleases}
+                onSignificanceChange={setFilterSignificance}
+                onCategoriesChange={setFilterCategories}
+                onShowReleasesChange={setShowReleases}
+              />
+            )}
+          </div>
 
           {isLoading || dataLoading ? (
             <div className="loading">

@@ -24,12 +24,14 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Smart Classification** | AI categorizes each PR by type and significance |
 | **Release Summaries** | AI-generated bullet points for release notes |
 | **Unified Feed** | All repos in one chronological view |
-| **Filtering** | Filter by significance (releases, major, minor, patch) and category |
+| **Dropdown Filters** | Filter by levels and categories via dropdown menus with select/deselect all |
 | **Per-Repo Settings** | Custom colors, names, and feed preferences |
 | **Starred Changes** | Save important updates for later |
 | **Release Modal** | Click releases to view full rendered markdown notes |
 | **New Badges** | Highlights unseen changes since your last visit |
 | **Timeline View** | Date-grouped feed with sticky headers and gap indicators showing time between updates |
+| **Page Title** | Dynamic title showing current view with inline filters |
+| **User Menu** | Profile picture and name with dropdown logout |
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
 | **Load Older Updates** | Fetch last 10 PRs for repos with no recent changes |
