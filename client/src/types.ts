@@ -60,6 +60,7 @@ export interface Repo {
   displayName?: string | null;
   customColor?: string | null;
   feedSignificance?: Significance[]; // Which significance levels show in "All Repos" feed
+  lastFetchedAt?: string | null; // When the repo was last checked for updates
 }
 
 export interface UserSettings {

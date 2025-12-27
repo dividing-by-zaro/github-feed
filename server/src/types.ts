@@ -62,6 +62,7 @@ export interface RepoInfo {
   description: string;
   defaultBranch: string;
   avatarUrl: string;
+  pushedAt: string | null;
 }
 
 export interface AnalyzeRequest {

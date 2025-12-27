@@ -117,6 +117,7 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 - **lastFetchedAt**: `GlobalRepo.lastFetchedAt` tracks when repo was last checked for updates
 - **lastSeenAt**: Each user tracks when they last marked the feed as read (for "new" badges)
 - **Incremental updates**: Only new PRs/releases (not already in database) are fetched and classified
+- **Load older updates**: `POST /repos/:id/fetch-recent` fetches last 10 PRs regardless of date, classifies new ones, returns GitHub's `pushedAt` timestamp for "last activity" display
 
 ## Classification Categories
 

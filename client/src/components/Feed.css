@@ -127,3 +127,71 @@
 .is-new {
   box-shadow: 0 0 0 2px #e3f2fd;
 }
+
+/* Fetch recent updates button in empty state */
+.fetch-recent-btn {
+  margin-top: 16px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  background: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fetch-recent-btn:hover:not(:disabled) {
+  background: #0052a3;
+}
+
+.fetch-recent-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Load older section at bottom of feed */
+.load-older-section {
+  text-align: center;
+  padding: 24px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.load-older-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.load-older-btn:hover:not(:disabled) {
+  background: #e8e8e8;
+  border-color: #ccc;
+}
+
+.load-older-btn:disabled {
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* Fetch result messages */
+.fetch-result {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.fetch-result.success {
+  color: #2e7d32;
+}
+
+.fetch-result.info {
+  color: #666;
+}

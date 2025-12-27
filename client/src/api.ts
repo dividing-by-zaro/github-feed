@@ -121,3 +121,16 @@ export async function deleteRepo(id: string): Promise<void> {
 export async function getAllFeedData(): Promise<FeedData> {
   return apiFetch('/api/repos/feed/all');
 }
+
+export interface FetchRecentResponse {
+  newFeedGroups: FeedGroup[];
+  totalPRsFetched: number;
+  newPRsClassified: number;
+  lastActivityAt: string | null;
+}
+
+export async function fetchRecentUpdates(repoId: string): Promise<FetchRecentResponse> {
+  return apiFetch(`/api/repos/${repoId}/fetch-recent`, {
+    method: 'POST',
+  });
+}

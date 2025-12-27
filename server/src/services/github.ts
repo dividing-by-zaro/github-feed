@@ -26,6 +26,7 @@ export class GitHubService {
       description: data.description || '',
       defaultBranch: data.default_branch,
       avatarUrl: data.owner.avatar_url,
+      pushedAt: data.pushed_at ?? null,
     };
   }
 
@@ -85,6 +86,51 @@ export class GitHubService {
     }
 
     // Sort by merge date, newest first
+    return prs.sort(
+      (a, b) => new Date(b.mergedAt).getTime() - new Date(a.mergedAt).getTime()
+    );
+  }
+
+  async getRecentMergedPRs(
+    owner: string,
+    name: string,
+    limit: number = 10
+  ): Promise<PRData[]> {
+    const prs: PRData[] = [];
+
+    const iterator = this.octokit.paginate.iterator(
+      this.octokit.pulls.list,
+      {
+        owner,
+        repo: name,
+        state: 'closed',
+        sort: 'updated',
+        direction: 'desc',
+        per_page: 100,
+      }
+    );
+
+    for await (const { data: pagePRs } of iterator) {
+      for (const pr of pagePRs) {
+        if (!pr.merged_at) continue;
+
+        const commits = await this.getPRCommits(owner, name, pr.number);
+
+        prs.push({
+          number: pr.number,
+          title: pr.title,
+          body: pr.body,
+          url: pr.html_url,
+          mergedAt: pr.merged_at,
+          commits,
+        });
+
+        if (prs.length >= limit) break;
+      }
+
+      if (prs.length >= limit) break;
+    }
+
     return prs.sort(
       (a, b) => new Date(b.mergedAt).getTime() - new Date(a.mergedAt).getTime()
     );

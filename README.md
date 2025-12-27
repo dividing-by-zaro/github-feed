@@ -31,6 +31,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **New Badges** | Highlights unseen changes since your last visit |
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
+| **Load Older Updates** | Fetch last 10 PRs for repos with no recent changes |
 
 ## Quick Start
 
@@ -86,6 +87,7 @@ Add these API keys to your server `.env` file:
 - [ ] Background cron job for repo updates (currently on-demand)
 - [ ] User repo semantic queries with questions like "When was support for guardrails added"?
 - [ ] Stripe integration for paid plans
+- [ ] When a user removes a repo from the sidebar, all FeedGroups should be automatically removed from their "all" feed as well
 
 ## License
 

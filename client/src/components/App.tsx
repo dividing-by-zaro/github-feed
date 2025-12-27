@@ -9,6 +9,7 @@ import {
   starChange,
   unstarChange,
   markAsSeen,
+  fetchRecentUpdates,
 } from '../api';
 import type {
   Repo,
@@ -106,6 +107,7 @@ export default function App() {
         displayName: result.displayName,
         customColor: result.customColor,
         feedSignificance: result.feedSignificance,
+        lastFetchedAt: result.lastFetchedAt,
       };
 
       setRepos((prev) => [...prev, newRepo]);
@@ -198,6 +200,23 @@ export default function App() {
       console.error('Failed to mark as seen:', err);
     }
   };
+
+  const handleFetchRecent = useCallback(async () => {
+    if (!selectedRepoId) return { newCount: 0, totalFetched: 0, lastActivityAt: null };
+
+    const result = await fetchRecentUpdates(selectedRepoId);
+
+    // Add new feed groups to state
+    if (result.newFeedGroups.length > 0) {
+      setFeedGroups((prev) => [...prev, ...result.newFeedGroups]);
+    }
+
+    return {
+      newCount: result.newPRsClassified,
+      totalFetched: result.totalPRsFetched,
+      lastActivityAt: result.lastActivityAt,
+    };
+  }, [selectedRepoId]);
 
   // Check if there are any new items
   const hasNewItems = useMemo(() => {
@@ -404,6 +423,8 @@ export default function App() {
               onReleaseClick={(release, repoName) => setSelectedRelease({ release, repoName })}
               repos={repos}
               lastSeenAt={user.lastSeenAt}
+              selectedRepo={selectedRepoId ? repos.find((r) => r.id === selectedRepoId) : null}
+              onFetchRecent={selectedRepoId ? handleFetchRecent : undefined}
             />
           )}
         </main>

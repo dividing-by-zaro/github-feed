@@ -234,6 +234,7 @@ router.get('/', async (req: Request, res: Response) => {
       displayName: ur.displayName,
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,
+      lastFetchedAt: ur.globalRepo.lastFetchedAt?.toISOString() ?? null,
     }));
 
     res.json(repos);
@@ -351,6 +352,7 @@ router.post('/', async (req: Request, res: Response) => {
       displayName: userRepo.displayName,
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
+      lastFetchedAt: userRepo.globalRepo.lastFetchedAt?.toISOString() ?? null,
       feedGroups: userRepo.globalRepo.feedGroups.map((fg) => ({
         ...fg,
         repoId: repoIdStr,
@@ -403,6 +405,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       displayName: userRepo.displayName,
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
+      lastFetchedAt: userRepo.globalRepo.lastFetchedAt?.toISOString() ?? null,
       feedGroups: userRepo.globalRepo.feedGroups.map((fg) => ({
         ...fg,
         repoId: repoIdStr,
@@ -483,6 +486,114 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Fetch recent updates for a repo (last 10 PRs regardless of date)
+router.post('/:id/fetch-recent', async (req: Request, res: Response) => {
+  try {
+    const user = getUser(req);
+    const { id } = req.params;
+
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    const githubToken = process.env.GITHUB_TOKEN;
+
+    if (!openaiApiKey) {
+      return res.status(500).json({ error: 'OpenAI API key not configured on server' });
+    }
+
+    // Find the user's repo
+    const userRepo = await prisma.userRepo.findFirst({
+      where: { id, userId: user.id },
+      include: { globalRepo: true },
+    });
+
+    if (!userRepo) {
+      return res.status(404).json({ error: 'Repo not found' });
+    }
+
+    const globalRepo = userRepo.globalRepo;
+    const { owner, name } = globalRepo;
+    const repoIdStr = `${owner}/${name}`;
+
+    const github = new GitHubService(githubToken || undefined);
+    const classifier = new ClassifierService(openaiApiKey);
+
+    console.log(`Fetching recent PRs for ${repoIdStr}`);
+
+    // Get repo info (includes pushedAt - last activity on GitHub)
+    const repoInfo = await github.getRepoInfo(owner, name);
+
+    // Fetch last 10 merged PRs (no date filter)
+    const prs = await github.getRecentMergedPRs(owner, name, 10);
+    console.log(`Found ${prs.length} recent merged PRs`);
+
+    // Get existing PR numbers to avoid re-classifying
+    const existingPRNumbers = new Set<number>();
+    const existingFeedGroups = await prisma.globalFeedGroup.findMany({
+      where: { globalRepoId: globalRepo.id },
+      select: { prNumber: true, changes: true },
+    });
+    for (const fg of existingFeedGroups) {
+      if (fg.prNumber) {
+        existingPRNumbers.add(fg.prNumber);
+      }
+      const changes = fg.changes as unknown as Change[];
+      for (const change of changes) {
+        const prMatch = change.id.match(/^pr-(\d+)$/);
+        if (prMatch) {
+          existingPRNumbers.add(parseInt(prMatch[1], 10));
+        }
+      }
+    }
+
+    // Filter to new PRs only
+    const newPRs = prs.filter((pr) => !existingPRNumbers.has(pr.number));
+    console.log(`${newPRs.length} new PRs to classify`);
+
+    let newFeedGroups: FeedGroup[] = [];
+
+    if (newPRs.length > 0) {
+      // Classify new PRs
+      console.log('Classifying PRs with OpenAI...');
+      const classifications = await classifier.classifyMultiplePRs(newPRs, repoInfo);
+      newFeedGroups = groupPRsByDate(newPRs, classifications, repoIdStr);
+
+      if (newFeedGroups.length > 0) {
+        await prisma.globalFeedGroup.createMany({
+          data: newFeedGroups.map((fg) => ({
+            globalRepoId: globalRepo.id,
+            type: fg.type,
+            title: fg.title,
+            prNumber: fg.prNumber,
+            prUrl: fg.prUrl,
+            date: new Date(fg.date),
+            changes: fg.changes as unknown as Prisma.InputJsonValue,
+          })),
+        });
+      }
+    }
+
+    // Update lastFetchedAt
+    await prisma.globalRepo.update({
+      where: { id: globalRepo.id },
+      data: { lastFetchedAt: new Date() },
+    });
+
+    console.log(`Finished fetching recent updates for ${repoIdStr}`);
+
+    // Return the new feed groups (empty array if none found)
+    res.json({
+      newFeedGroups,
+      totalPRsFetched: prs.length,
+      newPRsClassified: newPRs.length,
+      lastActivityAt: repoInfo.pushedAt,
+    });
+  } catch (error) {
+    console.error('Error fetching recent updates:', error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // Get all feed data for the user
 router.get('/feed/all', async (req: Request, res: Response) => {
   try {
@@ -551,6 +662,7 @@ router.get('/feed/all', async (req: Request, res: Response) => {
       displayName: ur.displayName,
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,
+      lastFetchedAt: ur.globalRepo.lastFetchedAt?.toISOString() ?? null,
     }));
 
     const feedGroups = userRepos.flatMap((ur) => {
