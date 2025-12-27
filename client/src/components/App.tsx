@@ -23,6 +23,7 @@ import Feed from './Feed';
 import FilterBar from './FilterBar';
 import AddRepoModal from './AddRepoModal';
 import RepoSettingsModal from './RepoSettingsModal';
+import ReleaseModal from './ReleaseModal';
 import LoginPage from './LoginPage';
 import './App.css';
 
@@ -39,15 +40,17 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'all' | 'starred' | 'releases'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [repoSettingsTarget, setRepoSettingsTarget] = useState<Repo | null>(null);
+  const [selectedRelease, setSelectedRelease] = useState<{ release: Release; repoName: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [filterSignificance, setFilterSignificance] = useState<Significance[]>(
-    user?.visibleSignificance as Significance[] || ['major', 'minor', 'patch']
+    user?.visibleSignificance as Significance[] || ['major', 'minor']
   );
   const [filterCategories, setFilterCategories] = useState<Category[]>(
     user?.visibleCategories as Category[] || ALL_CATEGORIES
   );
+  const [showReleases, setShowReleases] = useState(true);
 
   // Load initial data when user is authenticated
   const loadData = useCallback(async () => {
@@ -214,23 +217,45 @@ export default function App() {
 
     let groups = [...feedGroups];
 
-    if (selectedRepoId) {
-      groups = groups.filter((g) => g.repoId === selectedRepoId);
+    // Find the selected repo to get its "owner/name" format
+    const selectedRepo = selectedRepoId
+      ? repos.find((r) => r.id === selectedRepoId)
+      : null;
+    const selectedRepoKey = selectedRepo
+      ? `${selectedRepo.owner}/${selectedRepo.name}`
+      : null;
+
+    if (selectedRepoKey) {
+      groups = groups.filter((g) => g.repoId === selectedRepoKey);
     }
 
     groups = groups
       .map((group) => {
         const repo = repos.find((r) => `${r.owner}/${r.name}` === group.repoId);
-        const significanceFilter =
-          !selectedRepoId && viewMode === 'all' && repo?.feedSignificance
-            ? repo.feedSignificance
-            : filterSignificance;
+
+        // When viewing a specific repo, only apply that repo's feedSignificance (no UI filters)
+        // When viewing "All Repos", apply intersection of repo's feedSignificance AND UI filter
+        if (selectedRepoKey) {
+          const repoSignificance = repo?.feedSignificance ?? ['major', 'minor', 'patch', 'internal'];
+          return {
+            ...group,
+            changes: group.changes.filter((change) =>
+              repoSignificance.includes(change.significance)
+            ),
+          };
+        }
+
+        // "All Repos" view: apply both repo's feedSignificance AND UI filters
+        const repoSignificance = repo?.feedSignificance ?? filterSignificance;
+        const effectiveSignificance = filterSignificance.filter((s) =>
+          repoSignificance.includes(s)
+        );
 
         return {
           ...group,
           changes: group.changes.filter(
             (change) =>
-              significanceFilter.includes(change.significance) &&
+              effectiveSignificance.includes(change.significance) &&
               filterCategories.includes(change.category)
           ),
         };
@@ -266,14 +291,27 @@ export default function App() {
       return [];
     }
 
+    // When viewing a specific repo, always show releases (ignore showReleases toggle)
+    // When viewing "All Repos", respect the showReleases toggle
+    const selectedRepo = selectedRepoId
+      ? repos.find((r) => r.id === selectedRepoId)
+      : null;
+    const selectedRepoKey = selectedRepo
+      ? `${selectedRepo.owner}/${selectedRepo.name}`
+      : null;
+
+    if (!selectedRepoKey && !showReleases) {
+      return [];
+    }
+
     let rel = [...releases];
-    if (selectedRepoId) {
-      rel = rel.filter((r) => r.repoId === selectedRepoId);
+    if (selectedRepoKey) {
+      rel = rel.filter((r) => r.repoId === selectedRepoKey);
     }
     return rel.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-  }, [releases, selectedRepoId, viewMode]);
+  }, [releases, repos, selectedRepoId, viewMode, showReleases]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -336,12 +374,16 @@ export default function App() {
             </div>
           )}
 
-          <FilterBar
-            selectedSignificance={filterSignificance}
-            selectedCategories={filterCategories}
-            onSignificanceChange={setFilterSignificance}
-            onCategoriesChange={setFilterCategories}
-          />
+          {!selectedRepoId && (
+            <FilterBar
+              selectedSignificance={filterSignificance}
+              selectedCategories={filterCategories}
+              showReleases={showReleases}
+              onSignificanceChange={setFilterSignificance}
+              onCategoriesChange={setFilterCategories}
+              onShowReleasesChange={setShowReleases}
+            />
+          )}
 
           {isLoading || dataLoading ? (
             <div className="loading">
@@ -359,6 +401,7 @@ export default function App() {
               releases={filteredReleases}
               starredIds={starredIds}
               onToggleStar={handleToggleStar}
+              onReleaseClick={(release, repoName) => setSelectedRelease({ release, repoName })}
               repos={repos}
               lastSeenAt={user.lastSeenAt}
             />
@@ -380,6 +423,14 @@ export default function App() {
           onSave={handleUpdateRepo}
           onDelete={handleRemoveRepo}
           onClose={() => setRepoSettingsTarget(null)}
+        />
+      )}
+
+      {selectedRelease && (
+        <ReleaseModal
+          release={selectedRelease.release}
+          repoName={selectedRelease.repoName}
+          onClose={() => setSelectedRelease(null)}
         />
       )}
     </div>

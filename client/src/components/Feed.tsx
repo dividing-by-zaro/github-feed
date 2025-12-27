@@ -8,6 +8,7 @@ interface FeedProps {
   releases: Release[];
   starredIds: string[];
   onToggleStar: (changeId: string) => void;
+  onReleaseClick: (release: Release, repoName: string) => void;
   repos: Repo[];
   lastSeenAt: string | null;
 }
@@ -17,6 +18,7 @@ export default function Feed({
   releases,
   starredIds,
   onToggleStar,
+  onReleaseClick,
   repos,
   lastSeenAt,
 }: FeedProps) {
@@ -55,8 +57,9 @@ export default function Feed({
           return (
             <div
               key={item.id}
-              className={`release-item ${itemIsNew ? 'is-new' : ''}`}
+              className={`release-item clickable ${itemIsNew ? 'is-new' : ''}`}
               style={{ borderLeftColor: repoColor }}
+              onClick={() => onReleaseClick(item, repoName)}
             >
               <div className="release-header">
                 <div className="release-repo-row">
@@ -87,13 +90,15 @@ export default function Feed({
               </div>
               <div className="release-title-row">
                 <span className="release-badge">🏷️ Release</span>
-                <h3>
-                  <a href={item.url} target="_blank" rel="noopener noreferrer">
-                    {item.title}
-                  </a>
-                </h3>
+                <h3>{item.title}</h3>
               </div>
-              {item.body && (
+              {item.summary ? (
+                <ul className="release-summary">
+                  {item.summary.split('\n').filter(line => line.trim()).map((line, i) => (
+                    <li key={i}>{line.replace(/^[-•*]\s*/, '')}</li>
+                  ))}
+                </ul>
+              ) : item.body && (
                 <p className="release-body">{item.body.slice(0, 200)}...</p>
               )}
             </div>

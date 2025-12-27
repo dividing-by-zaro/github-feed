@@ -60,8 +60,17 @@ export default function Sidebar({
                   className="repo-button"
                   onClick={() => onSelectRepo(repo.id)}
                 >
-                  <span className="repo-name">{repo.displayName || repo.name}</span>
-                  <span className="repo-owner">{repo.owner}</span>
+                  {repo.avatarUrl && (
+                    <img
+                      src={repo.avatarUrl}
+                      alt={`${repo.owner} avatar`}
+                      className="repo-avatar"
+                    />
+                  )}
+                  <div className="repo-info">
+                    <span className="repo-name">{repo.displayName || repo.name}</span>
+                    <span className="repo-owner">{repo.owner}</span>
+                  </div>
                 </button>
                 <button
                   className="repo-settings-btn"

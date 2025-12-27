@@ -46,6 +46,7 @@ export interface Release {
   url: string;
   date: string;
   body: string;
+  summary?: string;
 }
 
 export interface Repo {

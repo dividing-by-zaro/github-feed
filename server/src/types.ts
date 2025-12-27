@@ -45,6 +45,15 @@ export interface Release {
   url: string;
   date: string;
   body: string;
+  summary?: string;
+}
+
+export interface ReleaseData {
+  title: string;
+  tagName: string;
+  url: string;
+  date: string;
+  body: string;
 }
 
 export interface RepoInfo {

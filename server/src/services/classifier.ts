@@ -1,5 +1,31 @@
 import OpenAI from 'openai';
-import type { PRData, ClassifiedChange, RepoInfo } from '../types.js';
+import type { PRData, ClassifiedChange, RepoInfo, ReleaseData } from '../types.js';
+
+const RELEASE_SUMMARY_PROMPT = `You are summarizing a GitHub Release for developers who want to quickly understand what's new.
+
+Repository: {repoName}
+Repository Description: {repoDescription}
+
+Release Title: {releaseTitle}
+Release Tag: {releaseTag}
+
+Release Notes:
+{releaseBody}
+
+Provide a concise summary of this release. Focus on the most important user-facing changes.
+
+Return a JSON object with:
+- summary: 3-5 SHORT bullet points (each starting with "- ") describing the key changes. Keep each bullet under 15 words. Focus on what users can do or what changed, not implementation details.
+
+If the release notes are empty or unclear, return:
+{"summary": "- Release {releaseTag}\\n- See release notes for details"}
+
+Example response:
+{
+  "summary": "- Added LSP tool for code intelligence features\\n- New terminal setup for Kitty users\\n- Bug fixes for Windows path handling\\n- Improved memory usage for large files"
+}
+
+Respond with ONLY the JSON object, no other text.`;
 
 const CLASSIFICATION_PROMPT = `You are analyzing a GitHub Pull Request to provide a HIGH-LEVEL summary of what it adds for users.
 
@@ -109,6 +135,82 @@ export class ClassifierService {
 
       for (const { prNumber, classification } of batchResults) {
         results.set(prNumber, classification);
+      }
+    }
+
+    return results;
+  }
+
+  async summarizeRelease(release: ReleaseData, repoInfo: RepoInfo): Promise<string | null> {
+    // Skip if no body to summarize
+    if (!release.body || release.body.trim().length < 20) {
+      return null;
+    }
+
+    const prompt = RELEASE_SUMMARY_PROMPT
+      .replace('{repoName}', `${repoInfo.owner}/${repoInfo.name}`)
+      .replace('{repoDescription}', repoInfo.description || 'No description')
+      .replace('{releaseTitle}', release.title)
+      .replace('{releaseTag}', release.tagName)
+      .replace('{releaseBody}', release.body.slice(0, 4000)); // Limit body size
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a technical analyst that summarizes GitHub releases. Always respond with valid JSON.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 500,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        console.error('No content in OpenAI response for release summary');
+        return null;
+      }
+
+      // Parse JSON object from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error('No JSON object found in release summary response:', content);
+        return null;
+      }
+
+      const result = JSON.parse(jsonMatch[0]) as { summary: string };
+      return result.summary;
+    } catch (error) {
+      console.error('Error summarizing release:', error);
+      return null;
+    }
+  }
+
+  async summarizeMultipleReleases(
+    releases: ReleaseData[],
+    repoInfo: RepoInfo
+  ): Promise<Map<string, string | null>> {
+    const results = new Map<string, string | null>();
+
+    // Process releases in parallel with a concurrency limit
+    const concurrency = 5;
+    for (let i = 0; i < releases.length; i += concurrency) {
+      const batch = releases.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map(async (release) => {
+          const summary = await this.summarizeRelease(release, repoInfo);
+          return { tagName: release.tagName, summary };
+        })
+      );
+
+      for (const { tagName, summary } of batchResults) {
+        results.set(tagName, summary);
       }
     }
 

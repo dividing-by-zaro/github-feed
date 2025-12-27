@@ -22,12 +22,14 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | Feature | Description |
 |---------|-------------|
 | **Smart Classification** | AI categorizes each PR by type and significance |
+| **Release Summaries** | AI-generated bullet points for release notes |
 | **Unified Feed** | All repos in one chronological view |
-| **Filtering** | Show only major changes, or filter by category |
+| **Filtering** | Filter by significance (releases, major, minor, patch) and category |
 | **Per-Repo Settings** | Custom colors, names, and feed preferences |
 | **Starred Changes** | Save important updates for later |
-| **Releases Feed** | Dedicated view for version releases |
+| **Release Modal** | Click releases to view full rendered markdown notes |
 | **New Badges** | Highlights unseen changes since your last visit |
+| **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
 
 ## Quick Start
@@ -73,9 +75,14 @@ Add these API keys to your server `.env` file:
 
 - [x] Fix repo owner images not displaying
 - [x] Persistent sessions (stay logged in across page reloads)
+- [x] Shared indexing layer (repos indexed once, shared across users)
+- [x] AI-generated release summaries
+- [x] Clickable release cards with markdown modal
+- [x] Repo avatars in sidebar
+- [ ] Auto-mark items as seen on scroll + unread count badge ([spec](docs/auto-mark-seen-on-scroll.md))
 - [ ] User profile page
 - [ ] Show API usage to users
-- [ ] Suggest already pulled repos
+- [ ] Suggest already indexed repos when adding
 - [ ] Background cron job for repo updates (currently on-demand)
 - [ ] User repo semantic queries with questions like "When was support for guardrails added"?
 - [ ] Stripe integration for paid plans

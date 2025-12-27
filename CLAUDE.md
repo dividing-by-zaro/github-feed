@@ -58,8 +58,20 @@ github-feed/
 
 - **One classification per PR**: LLM returns a single high-level summary per PR, not multiple granular changes
 - **Daily batching**: 2+ PRs on the same day get grouped into a "daily batch"
-- **Database persistence**: User data, repos, and feed groups stored in PostgreSQL via Prisma
-- **Per-repo settings**: Each repo can have custom color, display name, and significance filter
+- **Shared indexing layer**: Global tables (`GlobalRepo`, `GlobalFeedGroup`, `GlobalRelease`) store indexed data once; users subscribe via `UserRepo` with custom settings
+- **Per-user settings**: Each user's repo subscription has custom color, display name, and significance filter (stored in `UserRepo`)
+
+## Database Schema
+
+**Global tables** (shared across all users):
+- `GlobalRepo` - Repo metadata, lastFetchedAt for staleness check
+- `GlobalFeedGroup` - Classified PRs with AI-generated summaries
+- `GlobalRelease` - Releases with AI-generated summaries
+
+**User tables**:
+- `User` - Auth info, preferences, lastSeenAt
+- `UserRepo` - User's subscription to a GlobalRepo with custom displayName, customColor, feedSignificance
+- `StarredChange` - User's starred items
 
 ## Authentication
 
@@ -94,16 +106,17 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 ## API Flow
 
 1. User adds repo URL
-2. Server fetches merged PRs and releases from GitHub API
-3. Each PR is classified by OpenAI (category, significance, title, bullet summary)
-4. Results stored in database, returned to client
+2. Server checks if `GlobalRepo` exists for this owner/name
+3. If exists and fresh (<1 hour): instantly create `UserRepo` link (no API calls)
+4. If missing or stale: fetch PRs/releases from GitHub, classify with OpenAI, store in global tables
+5. Results returned to client; future users adding same repo get cached data
 
 ## Feed Refresh
 
 - **On-demand refresh**: When user loads feed, stale repos (>1 hour since last fetch) are automatically refreshed
-- **lastFetchedAt**: Each repo tracks when it was last checked for updates
+- **lastFetchedAt**: `GlobalRepo.lastFetchedAt` tracks when repo was last checked for updates
 - **lastSeenAt**: Each user tracks when they last marked the feed as read (for "new" badges)
-- **Incremental updates**: Only new PRs (not already in database) are fetched and classified
+- **Incremental updates**: Only new PRs/releases (not already in database) are fetched and classified
 
 ## Classification Categories
 

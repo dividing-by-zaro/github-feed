@@ -21,6 +21,16 @@
   border-left: 4px solid #6f42c1;
 }
 
+.release-item.clickable {
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.release-item.clickable:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
 .release-header {
   display: flex;
   justify-content: space-between;
@@ -87,6 +97,18 @@
   margin-top: 8px;
   font-size: 14px;
   color: #666;
+}
+
+.release-summary {
+  margin: 12px 0 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: #444;
+}
+
+.release-summary li {
+  margin: 4px 0;
+  line-height: 1.4;
 }
 
 /* New badge for unseen items */

@@ -10,15 +10,19 @@ import './FilterBar.css';
 interface FilterBarProps {
   selectedSignificance: Significance[];
   selectedCategories: Category[];
+  showReleases: boolean;
   onSignificanceChange: (significance: Significance[]) => void;
   onCategoriesChange: (categories: Category[]) => void;
+  onShowReleasesChange: (show: boolean) => void;
 }
 
 export default function FilterBar({
   selectedSignificance,
   selectedCategories,
+  showReleases,
   onSignificanceChange,
   onCategoriesChange,
+  onShowReleasesChange,
 }: FilterBarProps) {
   const toggleSignificance = (sig: Significance) => {
     if (selectedSignificance.includes(sig)) {
@@ -41,6 +45,12 @@ export default function FilterBar({
       <div className="filter-group">
         <span className="filter-label">Significance:</span>
         <div className="filter-buttons">
+          <button
+            className={`filter-button ${showReleases ? 'active' : ''}`}
+            onClick={() => onShowReleasesChange(!showReleases)}
+          >
+            Releases
+          </button>
           {ALL_SIGNIFICANCE.map((sig) => (
             <button
               key={sig}
