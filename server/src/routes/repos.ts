@@ -244,6 +244,53 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// Search indexed repos (for autocomplete)
+router.get('/search', async (req: Request, res: Response) => {
+  try {
+    const user = getUser(req);
+    const query = (req.query.q as string || '').trim();
+
+    if (query.length < 2) {
+      return res.json([]);
+    }
+
+    // Find GlobalRepos matching the query, including whether user already follows them
+    const results = await prisma.globalRepo.findMany({
+      where: {
+        OR: [
+          { owner: { contains: query, mode: 'insensitive' } },
+          { name: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        owner: true,
+        name: true,
+        description: true,
+        avatarUrl: true,
+        url: true,
+        userRepos: {
+          where: { userId: user.id },
+          select: { id: true },
+        },
+      },
+      take: 8,
+      orderBy: { name: 'asc' },
+    });
+
+    // Transform to include isFollowed flag
+    const transformed = results.map(({ userRepos, ...repo }) => ({
+      ...repo,
+      isFollowed: userRepos.length > 0,
+    }));
+
+    res.json(transformed);
+  } catch (error) {
+    console.error('Error searching repos:', error);
+    res.status(500).json({ error: 'Failed to search repos' });
+  }
+});
+
 // Add a new repo
 router.post('/', async (req: Request, res: Response) => {
   try {

@@ -11,11 +11,28 @@ export class GitHubService {
   }
 
   parseRepoUrl(url: string): { owner: string; name: string } {
-    const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    // Normalize: trim whitespace and remove trailing slashes
+    const normalized = url.trim().replace(/\/+$/, '');
+
+    // Match github.com URLs, ensuring it's the actual domain (not a subdomain or path containing "github.com")
+    // Supports: https://github.com/owner/repo, github.com/owner/repo, www.github.com/owner/repo
+    const match = normalized.match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/]+)/i);
     if (!match) {
-      throw new Error('Invalid GitHub URL');
+      throw new Error('Invalid GitHub URL. Please use a URL like: https://github.com/owner/repo');
     }
-    return { owner: match[1], name: match[2].replace(/\.git$/, '') };
+
+    // Clean up repo name: remove .git suffix, query params, and hash fragments
+    const owner = match[1];
+    const name = match[2]
+      .replace(/\.git$/, '')
+      .replace(/[?#].*$/, '');
+
+    // Basic validation: owner and name shouldn't be empty
+    if (!owner || !name) {
+      throw new Error('Invalid GitHub URL. Could not extract owner and repository name.');
+    }
+
+    return { owner, name };
   }
 
   async getRepoInfo(owner: string, name: string): Promise<RepoInfo> {

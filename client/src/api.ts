@@ -134,3 +134,19 @@ export async function fetchRecentUpdates(repoId: string): Promise<FetchRecentRes
     method: 'POST',
   });
 }
+
+// Search indexed repos for autocomplete
+export interface IndexedRepo {
+  id: string;
+  owner: string;
+  name: string;
+  description: string | null;
+  avatarUrl: string | null;
+  url: string;
+  isFollowed: boolean;
+}
+
+export async function searchIndexedRepos(query: string): Promise<IndexedRepo[]> {
+  if (query.length < 2) return [];
+  return apiFetch(`/api/repos/search?q=${encodeURIComponent(query)}`);
+}

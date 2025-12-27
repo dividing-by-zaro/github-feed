@@ -1,14 +1,14 @@
-# GitHub Feed
+# GitHub Curator
 
 **Stop missing important updates in the repos you care about.**
 
-GitHub Feed monitors repositories and uses AI to surface what matters: new features, breaking changes, security fixes, and more—all in one unified feed.
+GitHub Curator monitors repositories and uses AI to surface what matters: new features, breaking changes, security fixes, and more—all in one unified feed.
 
 ![GitHub Feed Interface](docs/screenshots/feed-view.png)
 
 ## Why?
 
-Watching GitHub repos gives you a firehose of commits. Release notes are often incomplete or delayed. GitHub Feed solves this by:
+Watching GitHub repos gives you a firehose of commits. Release notes are often incomplete or delayed. GitHub Curator solves this by:
 
 - **Analyzing merged PRs** with AI to extract meaningful changes
 - **Classifying by impact** (major, minor, patch, internal) so you see what matters
@@ -32,6 +32,8 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
 | **Load Older Updates** | Fetch last 10 PRs for repos with no recent changes |
+| **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
+| **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |
 
 ## Quick Start
 
@@ -82,8 +84,8 @@ Add these API keys to your server `.env` file:
 - [x] Repo avatars in sidebar
 - [ ] Auto-mark items as seen on scroll + unread count badge ([spec](docs/auto-mark-seen-on-scroll.md))
 - [ ] User profile page
-- [ ] Show API usage to users
-- [ ] Suggest already indexed repos when adding
+- [ ] Show API usage to users ([spec](docs/llm-usage-tracking.md))
+- [x] Suggest already indexed repos when adding
 - [ ] Background cron job for repo updates (currently on-demand)
 - [ ] User repo semantic queries with questions like "When was support for guardrails added"?
 - [ ] Stripe integration for paid plans

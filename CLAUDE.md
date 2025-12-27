@@ -1,4 +1,4 @@
-# GitHub Feed - Project Guide
+# GitHub Curator - Project Guide
 
 ## Project Overview
 
@@ -126,3 +126,19 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 ## Significance Levels
 
 - major, minor, patch, internal
+
+## API Endpoints
+
+Key endpoints in `server/src/routes/repos.ts`:
+- `GET /api/repos/search?q=...` - Autocomplete search for indexed repos (returns `isFollowed` flag)
+- `POST /api/repos` - Add repo (with robust URL parsing)
+- `GET /api/repos/feed/all` - Get all feed data, refreshes stale repos
+
+## URL Parsing
+
+`GitHubService.parseRepoUrl()` handles:
+- Full URLs, with/without protocol
+- Extra path segments (`/tree/main`, `/blob/...`)
+- Query params and hash fragments
+- `.git` suffix
+- Validates github.com domain (rejects other hosts)

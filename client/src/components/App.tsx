@@ -352,7 +352,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>GitHub Feed</h1>
+        <h1>GitHub Curator</h1>
         <div className="header-actions">
           {hasNewItems && (
             <button onClick={handleMarkAsSeen} className="mark-read-btn">

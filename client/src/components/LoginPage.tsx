@@ -7,7 +7,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <h1>GitHub Feed</h1>
+        <h1>GitHub Curator</h1>
         <p className="login-description">
           Track changes across your favorite GitHub repositories with AI-powered summaries.
         </p>
