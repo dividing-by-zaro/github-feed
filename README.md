@@ -29,6 +29,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Starred Changes** | Save important updates for later |
 | **Release Modal** | Click releases to view full rendered markdown notes |
 | **New Badges** | Highlights unseen changes since your last visit |
+| **Timeline View** | Date-grouped feed with sticky headers and gap indicators showing time between updates |
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
 | **Load Older Updates** | Fetch last 10 PRs for repos with no recent changes |

@@ -24,14 +24,6 @@ export default function FeedGroupComponent({
 }: FeedGroupProps) {
   const repoColor = customColor || getRepoColor(feedGroup.repoId);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
   return (
     <div className={`feed-group ${isNew ? 'is-new' : ''}`} style={{ borderLeftColor: repoColor }}>
       <div className="feed-group-header">
@@ -67,7 +59,6 @@ export default function FeedGroupComponent({
             <span className="feed-group-title">{feedGroup.title}</span>
           )}
         </div>
-        <span className="feed-group-date">{formatDate(feedGroup.date)}</span>
       </div>
 
       <div className="feed-group-changes">

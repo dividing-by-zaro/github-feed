@@ -60,6 +60,7 @@ github-feed/
 - **Daily batching**: 2+ PRs on the same day get grouped into a "daily batch"
 - **Shared indexing layer**: Global tables (`GlobalRepo`, `GlobalFeedGroup`, `GlobalRelease`) store indexed data once; users subscribe via `UserRepo` with custom settings
 - **Per-user settings**: Each user's repo subscription has custom color, display name, and significance filter (stored in `UserRepo`)
+- **Timeline view with date grouping**: Feed items grouped by date with sticky DateHeader components and GapIndicator showing time gaps between updates
 
 ## Database Schema
 

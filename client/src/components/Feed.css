@@ -1,7 +1,13 @@
 .feed {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
+}
+
+.date-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .feed-empty {
