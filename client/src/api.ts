@@ -33,8 +33,6 @@ export async function logout() {
 
 // User settings endpoints
 export interface UserSettings {
-  hasOpenaiKey: boolean;
-  hasGithubToken: boolean;
   visibleSignificance: Significance[];
   visibleCategories: Category[];
 }
@@ -44,8 +42,6 @@ export async function getUserSettings(): Promise<UserSettings> {
 }
 
 export async function updateUserSettings(settings: {
-  openaiApiKey?: string;
-  githubToken?: string;
   visibleSignificance?: Significance[];
   visibleCategories?: Category[];
 }): Promise<UserSettings> {
@@ -69,6 +65,13 @@ export async function starChange(changeId: string): Promise<void> {
 export async function unstarChange(changeId: string): Promise<void> {
   return apiFetch(`/api/user/starred/${encodeURIComponent(changeId)}`, {
     method: 'DELETE',
+  });
+}
+
+// Mark all feed items as seen
+export async function markAsSeen(): Promise<{ lastSeenAt: string }> {
+  return apiFetch('/api/user/mark-seen', {
+    method: 'POST',
   });
 }
 

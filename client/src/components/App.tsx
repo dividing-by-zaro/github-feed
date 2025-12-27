@@ -8,6 +8,7 @@ import {
   getStarredChanges,
   starChange,
   unstarChange,
+  markAsSeen,
 } from '../api';
 import type {
   Repo,
@@ -21,7 +22,6 @@ import Sidebar from './Sidebar';
 import Feed from './Feed';
 import FilterBar from './FilterBar';
 import AddRepoModal from './AddRepoModal';
-import SettingsModal from './SettingsModal';
 import RepoSettingsModal from './RepoSettingsModal';
 import LoginPage from './LoginPage';
 import './App.css';
@@ -38,7 +38,6 @@ export default function App() {
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'all' | 'starred' | 'releases'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [repoSettingsTarget, setRepoSettingsTarget] = useState<Repo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,12 +86,6 @@ export default function App() {
   }, [user?.visibleSignificance, user?.visibleCategories]);
 
   const handleAddRepo = async (repoUrl: string) => {
-    if (!user?.hasOpenaiKey) {
-      setError('Please set your OpenAI API key in settings first');
-      setShowSettingsModal(true);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
@@ -194,10 +187,24 @@ export default function App() {
     }
   };
 
-  const handleSettingsSaved = () => {
-    setShowSettingsModal(false);
-    refetchUser();
+  const handleMarkAsSeen = async () => {
+    try {
+      await markAsSeen();
+      await refetchUser(); // Refresh user to get updated lastSeenAt
+    } catch (err) {
+      console.error('Failed to mark as seen:', err);
+    }
   };
+
+  // Check if there are any new items
+  const hasNewItems = useMemo(() => {
+    if (!user?.lastSeenAt) return feedGroups.length > 0 || releases.length > 0;
+    const lastSeen = new Date(user.lastSeenAt);
+    return (
+      feedGroups.some((g) => new Date(g.date) > lastSeen) ||
+      releases.some((r) => new Date(r.date) > lastSeen)
+    );
+  }, [feedGroups, releases, user?.lastSeenAt]);
 
   // Filter and sort feed items
   const filteredFeed = useMemo(() => {
@@ -290,7 +297,11 @@ export default function App() {
       <header className="header">
         <h1>GitHub Feed</h1>
         <div className="header-actions">
-          <button onClick={() => setShowSettingsModal(true)}>Settings</button>
+          {hasNewItems && (
+            <button onClick={handleMarkAsSeen} className="mark-read-btn">
+              Mark all as read
+            </button>
+          )}
           <button onClick={() => setShowAddModal(true)}>Add Repo</button>
           <button onClick={logout} className="logout-btn">
             {user.avatarUrl && (
@@ -349,6 +360,7 @@ export default function App() {
               starredIds={starredIds}
               onToggleStar={handleToggleStar}
               repos={repos}
+              lastSeenAt={user.lastSeenAt}
             />
           )}
         </main>
@@ -359,15 +371,6 @@ export default function App() {
           onAdd={handleAddRepo}
           onClose={() => setShowAddModal(false)}
           isLoading={isLoading}
-        />
-      )}
-
-      {showSettingsModal && (
-        <SettingsModal
-          hasOpenaiKey={user.hasOpenaiKey}
-          hasGithubToken={user.hasGithubToken}
-          onSave={handleSettingsSaved}
-          onClose={() => setShowSettingsModal(false)}
         />
       )}
 

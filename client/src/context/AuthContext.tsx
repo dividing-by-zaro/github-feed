@@ -6,10 +6,9 @@ export interface User {
   email: string;
   name: string | null;
   avatarUrl: string | null;
-  hasOpenaiKey: boolean;
-  hasGithubToken: boolean;
   visibleSignificance: string[];
   visibleCategories: string[];
+  lastSeenAt: string | null;
 }
 
 interface AuthContextType {

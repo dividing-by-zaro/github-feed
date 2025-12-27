@@ -9,6 +9,7 @@ interface FeedProps {
   starredIds: string[];
   onToggleStar: (changeId: string) => void;
   repos: Repo[];
+  lastSeenAt: string | null;
 }
 
 export default function Feed({
@@ -17,7 +18,12 @@ export default function Feed({
   starredIds,
   onToggleStar,
   repos,
+  lastSeenAt,
 }: FeedProps) {
+  const isNew = (dateStr: string) => {
+    if (!lastSeenAt) return true; // Everything is new if never marked as seen
+    return new Date(dateStr) > new Date(lastSeenAt);
+  };
   // Merge feed groups and releases, sorted by date
   const allItems = [
     ...feedGroups.map((g) => ({ ...g, itemType: 'feedGroup' as const })),
@@ -44,10 +50,11 @@ export default function Feed({
           const repo = getRepo(item.repoId);
           const repoName = repo?.displayName || repo?.name || item.repoId;
           const repoColor = repo?.customColor || getRepoColor(item.repoId);
+          const itemIsNew = isNew(item.date);
           return (
             <div
               key={item.id}
-              className="release-item"
+              className={`release-item ${itemIsNew ? 'is-new' : ''}`}
               style={{ borderLeftColor: repoColor }}
             >
               <div className="release-header">
@@ -67,6 +74,7 @@ export default function Feed({
                   <span className="release-repo" style={{ color: repoColor }}>
                     {repoName}
                   </span>
+                  {itemIsNew && <span className="new-badge">New</span>}
                 </div>
                 <span className="release-date">
                   {new Date(item.date).toLocaleDateString('en-US', {
@@ -101,6 +109,7 @@ export default function Feed({
             customColor={repo?.customColor ?? undefined}
             starredIds={starredIds}
             onToggleStar={onToggleStar}
+            isNew={isNew(item.date)}
           />
         );
       })}

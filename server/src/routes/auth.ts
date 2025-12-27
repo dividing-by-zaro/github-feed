@@ -31,16 +31,14 @@ router.get(
 router.get('/me', (req, res) => {
   if (req.isAuthenticated() && req.user) {
     const user = getUser(req);
-    // Don't send sensitive keys to client
     res.json({
       id: user.id,
       email: user.email,
       name: user.name,
       avatarUrl: user.avatarUrl,
-      hasOpenaiKey: !!user.openaiApiKey,
-      hasGithubToken: !!user.githubToken,
       visibleSignificance: user.visibleSignificance,
       visibleCategories: user.visibleCategories,
+      lastSeenAt: user.lastSeenAt,
     });
   } else {
     res.status(401).json({ error: 'Not authenticated' });

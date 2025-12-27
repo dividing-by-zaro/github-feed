@@ -35,11 +35,15 @@
   min-width: 0;
 }
 
+.feed-group-repo-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
 .feed-group-repo {
-  display: block;
   font-size: 18px;
   font-weight: 700;
-  margin-bottom: 4px;
 }
 
 .feed-group-title {

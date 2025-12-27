@@ -20,8 +20,6 @@ router.get('/settings', async (req, res) => {
     }
 
     res.json({
-      hasOpenaiKey: !!fullUser.openaiApiKey,
-      hasGithubToken: !!fullUser.githubToken,
       visibleSignificance: fullUser.visibleSignificance,
       visibleCategories: fullUser.visibleCategories,
     });
@@ -35,17 +33,10 @@ router.get('/settings', async (req, res) => {
 router.put('/settings', async (req, res) => {
   try {
     const user = getUser(req);
-    const { openaiApiKey, githubToken, visibleSignificance, visibleCategories } = req.body;
+    const { visibleSignificance, visibleCategories } = req.body;
 
     const updateData: any = {};
 
-    // Only update API keys if provided (empty string clears them)
-    if (openaiApiKey !== undefined) {
-      updateData.openaiApiKey = openaiApiKey || null;
-    }
-    if (githubToken !== undefined) {
-      updateData.githubToken = githubToken || null;
-    }
     if (visibleSignificance) {
       updateData.visibleSignificance = visibleSignificance;
     }
@@ -59,8 +50,6 @@ router.put('/settings', async (req, res) => {
     });
 
     res.json({
-      hasOpenaiKey: !!updatedUser.openaiApiKey,
-      hasGithubToken: !!updatedUser.githubToken,
       visibleSignificance: updatedUser.visibleSignificance,
       visibleCategories: updatedUser.visibleCategories,
     });
@@ -130,6 +119,23 @@ router.delete('/starred/:changeId', async (req, res) => {
   } catch (error) {
     console.error('Error unstarring change:', error);
     res.status(500).json({ error: 'Failed to unstar change' });
+  }
+});
+
+// Mark all feed items as seen
+router.post('/mark-seen', async (req, res) => {
+  try {
+    const user = getUser(req);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { lastSeenAt: new Date() },
+    });
+
+    res.json({ lastSeenAt: updatedUser.lastSeenAt });
+  } catch (error) {
+    console.error('Error marking as seen:', error);
+    res.status(500).json({ error: 'Failed to mark as seen' });
   }
 });
 

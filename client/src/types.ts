@@ -62,8 +62,6 @@ export interface Repo {
 }
 
 export interface UserSettings {
-  openaiApiKey: string;
-  githubToken: string;
   visibleSignificance: Significance[];
   visibleCategories: Category[];
 }

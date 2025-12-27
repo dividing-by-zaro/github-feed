@@ -10,6 +10,7 @@ interface FeedGroupProps {
   customColor?: string;
   starredIds: string[];
   onToggleStar: (changeId: string) => void;
+  isNew?: boolean;
 }
 
 export default function FeedGroupComponent({
@@ -19,6 +20,7 @@ export default function FeedGroupComponent({
   customColor,
   starredIds,
   onToggleStar,
+  isNew,
 }: FeedGroupProps) {
   const repoColor = customColor || getRepoColor(feedGroup.repoId);
 
@@ -31,7 +33,7 @@ export default function FeedGroupComponent({
   };
 
   return (
-    <div className="feed-group" style={{ borderLeftColor: repoColor }}>
+    <div className={`feed-group ${isNew ? 'is-new' : ''}`} style={{ borderLeftColor: repoColor }}>
       <div className="feed-group-header">
         {avatarUrl ? (
           <img
@@ -46,9 +48,12 @@ export default function FeedGroupComponent({
           />
         )}
         <div className="feed-group-info">
-          <span className="feed-group-repo" style={{ color: repoColor }}>
-            {repoName}
-          </span>
+          <div className="feed-group-repo-row">
+            <span className="feed-group-repo" style={{ color: repoColor }}>
+              {repoName}
+            </span>
+            {isNew && <span className="new-badge">New</span>}
+          </div>
           {feedGroup.type === 'pr' && feedGroup.prUrl ? (
             <a
               href={feedGroup.prUrl}

@@ -123,21 +123,20 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'repoUrl is required' });
     }
 
-    // Get user's API keys from database
-    const fullUser = await prisma.user.findUnique({
-      where: { id: user.id },
-    });
+    // Use API keys from environment variables
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    const githubToken = process.env.GITHUB_TOKEN;
 
-    if (!fullUser?.openaiApiKey) {
-      return res.status(400).json({ error: 'Please set your OpenAI API key in settings first' });
+    if (!openaiApiKey) {
+      return res.status(500).json({ error: 'OpenAI API key not configured on server' });
     }
 
     const sinceDate = since
       ? new Date(since)
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const github = new GitHubService(fullUser.githubToken || undefined);
-    const classifier = new ClassifierService(fullUser.openaiApiKey);
+    const github = new GitHubService(githubToken || undefined);
+    const classifier = new ClassifierService(openaiApiKey);
 
     // Parse repo URL
     const { owner, name } = github.parseRepoUrl(repoUrl);
@@ -189,6 +188,7 @@ router.post('/', async (req: Request, res: Response) => {
         description: repoInfo.description,
         avatarUrl: repoInfo.avatarUrl,
         userId: user.id,
+        lastFetchedAt: new Date(),
         feedGroups: {
           create: feedGroups.map((fg) => ({
             type: fg.type,
@@ -302,12 +302,151 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Refresh a single repo if stale (returns true if refreshed)
+async function refreshRepoIfStale(
+  repo: { id: string; owner: string; name: string; lastFetchedAt: Date | null },
+  github: GitHubService,
+  classifier: ClassifierService
+): Promise<boolean> {
+  const STALE_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
+  const now = Date.now();
+
+  // Check if repo needs refresh
+  if (repo.lastFetchedAt && now - repo.lastFetchedAt.getTime() < STALE_THRESHOLD_MS) {
+    return false;
+  }
+
+  console.log(`Refreshing stale repo: ${repo.owner}/${repo.name}`);
+
+  try {
+    // Get the most recent feed group and release dates to use as "since"
+    const [latestFeedGroup, latestRelease] = await Promise.all([
+      prisma.feedGroup.findFirst({
+        where: { repoId: repo.id },
+        orderBy: { date: 'desc' },
+        select: { date: true },
+      }),
+      prisma.release.findFirst({
+        where: { repoId: repo.id },
+        orderBy: { date: 'desc' },
+        select: { date: true },
+      }),
+    ]);
+
+    // Use the most recent date, or 30 days ago if no data
+    const dates = [latestFeedGroup?.date, latestRelease?.date].filter(Boolean) as Date[];
+    const sinceDate = dates.length > 0
+      ? new Date(Math.max(...dates.map((d) => d.getTime())))
+      : new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+    // Fetch repo info
+    const repoInfo = await github.getRepoInfo(repo.owner, repo.name);
+
+    // Fetch new PRs and releases
+    const [prs, releases] = await Promise.all([
+      github.getMergedPRs(repo.owner, repo.name, sinceDate),
+      github.getReleases(repo.owner, repo.name, sinceDate),
+    ]);
+
+    // Filter out PRs we already have (check by PR number in existing feed groups)
+    const existingPRNumbers = new Set<number>();
+    const existingFeedGroups = await prisma.feedGroup.findMany({
+      where: { repoId: repo.id },
+      select: { prNumber: true, changes: true },
+    });
+    for (const fg of existingFeedGroups) {
+      if (fg.prNumber) {
+        existingPRNumbers.add(fg.prNumber);
+      }
+      // Also check changes for PR IDs in daily batches
+      const changes = fg.changes as unknown as Change[];
+      for (const change of changes) {
+        const prMatch = change.id.match(/^pr-(\d+)$/);
+        if (prMatch) {
+          existingPRNumbers.add(parseInt(prMatch[1], 10));
+        }
+      }
+    }
+
+    const newPRs = prs.filter((pr) => !existingPRNumbers.has(pr.number));
+    console.log(`Found ${newPRs.length} new PRs for ${repo.owner}/${repo.name}`);
+
+    // Filter out releases we already have (check by tagName)
+    const existingTags = new Set(
+      (await prisma.release.findMany({
+        where: { repoId: repo.id },
+        select: { tagName: true },
+      })).map((r) => r.tagName)
+    );
+
+    const newReleases = releases.filter((r) => !existingTags.has(r.tagName));
+    console.log(`Found ${newReleases.length} new releases for ${repo.owner}/${repo.name}`);
+
+    // Classify new PRs if any
+    if (newPRs.length > 0) {
+      const classifications = await classifier.classifyMultiplePRs(newPRs, repoInfo);
+      const repoIdStr = `${repo.owner}/${repo.name}`;
+      const newFeedGroups = groupPRsByDate(newPRs, classifications, repoIdStr);
+
+      // Save new feed groups
+      if (newFeedGroups.length > 0) {
+        await prisma.feedGroup.createMany({
+          data: newFeedGroups.map((fg) => ({
+            repoId: repo.id,
+            type: fg.type,
+            title: fg.title,
+            prNumber: fg.prNumber,
+            prUrl: fg.prUrl,
+            date: new Date(fg.date),
+            changes: fg.changes as unknown as Prisma.InputJsonValue,
+          })),
+        });
+      }
+    }
+
+    // Save new releases
+    if (newReleases.length > 0) {
+      await prisma.release.createMany({
+        data: newReleases.map((r) => ({
+          repoId: repo.id,
+          title: r.title,
+          tagName: r.tagName,
+          url: r.url,
+          date: new Date(r.date),
+          body: r.body,
+        })),
+      });
+    }
+
+    // Update lastFetchedAt
+    await prisma.repo.update({
+      where: { id: repo.id },
+      data: { lastFetchedAt: new Date() },
+    });
+
+    return newPRs.length > 0 || newReleases.length > 0;
+  } catch (error) {
+    console.error(`Error refreshing repo ${repo.owner}/${repo.name}:`, error);
+    // Still update lastFetchedAt to prevent hammering on errors
+    await prisma.repo.update({
+      where: { id: repo.id },
+      data: { lastFetchedAt: new Date() },
+    });
+    return false;
+  }
+}
+
 // Get all feed data for the user
 router.get('/feed/all', async (req: Request, res: Response) => {
   try {
     const user = getUser(req);
 
-    const repos = await prisma.repo.findMany({
+    // Get API keys
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    const githubToken = process.env.GITHUB_TOKEN;
+
+    // First, get repos to check for stale ones
+    let repos = await prisma.repo.findMany({
       where: { userId: user.id },
       include: {
         feedGroups: {
@@ -318,6 +457,33 @@ router.get('/feed/all', async (req: Request, res: Response) => {
         },
       },
     });
+
+    // Refresh stale repos if we have API keys
+    if (openaiApiKey && repos.length > 0) {
+      const github = new GitHubService(githubToken || undefined);
+      const classifier = new ClassifierService(openaiApiKey);
+
+      // Refresh stale repos (in parallel with limit)
+      const refreshPromises = repos.map((repo) =>
+        refreshRepoIfStale(repo, github, classifier)
+      );
+      const refreshResults = await Promise.all(refreshPromises);
+
+      // If any repos were refreshed, re-fetch the data
+      if (refreshResults.some((r) => r)) {
+        repos = await prisma.repo.findMany({
+          where: { userId: user.id },
+          include: {
+            feedGroups: {
+              orderBy: { date: 'desc' },
+            },
+            releases: {
+              orderBy: { date: 'desc' },
+            },
+          },
+        });
+      }
+    }
 
     // Flatten and format the response
     const feedGroups = repos.flatMap((repo) =>

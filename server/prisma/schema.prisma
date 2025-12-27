@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -14,13 +13,12 @@ model User {
   avatarUrl     String?
   googleId      String   @unique
 
-  // API keys (stored encrypted in production)
-  openaiApiKey  String?
-  githubToken   String?
-
   // Preferences
   visibleSignificance String[] @default(["major", "minor", "patch"])
   visibleCategories   String[] @default(["feature", "enhancement", "bugfix", "breaking", "deprecation", "performance", "security", "docs"])
+
+  // Feed tracking
+  lastSeenAt    DateTime?  // When user last marked feed as read
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -47,6 +45,7 @@ model Repo {
   releases      Release[]
 
   createdAt     DateTime @default(now())
+  lastFetchedAt DateTime?  // When we last checked GitHub for updates
 
   @@unique([userId, owner, name])
 }

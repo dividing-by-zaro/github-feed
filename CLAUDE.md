@@ -77,14 +77,15 @@ github-feed/
 
 ### Environment Variables
 
-Place `.env` in the **repo root** (not server folder). The server loads it via `env.ts`.
+Place `.env` in the **server/** folder. The server loads it via `env.ts`.
 
 ```
 DATABASE_URL=postgresql://...
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 SESSION_SECRET=...
-GITHUB_TOKEN=...  # Optional, for higher rate limits
+OPENAI_API_KEY=sk-...  # Required for PR classification
+GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 ```
 
 ## API Flow
@@ -92,7 +93,14 @@ GITHUB_TOKEN=...  # Optional, for higher rate limits
 1. User adds repo URL
 2. Server fetches merged PRs and releases from GitHub API
 3. Each PR is classified by OpenAI (category, significance, title, bullet summary)
-4. Results returned and stored in localStorage
+4. Results stored in database, returned to client
+
+## Feed Refresh
+
+- **On-demand refresh**: When user loads feed, stale repos (>1 hour since last fetch) are automatically refreshed
+- **lastFetchedAt**: Each repo tracks when it was last checked for updates
+- **lastSeenAt**: Each user tracks when they last marked the feed as read (for "new" badges)
+- **Incremental updates**: Only new PRs (not already in database) are fetched and classified
 
 ## Classification Categories
 

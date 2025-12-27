@@ -187,6 +187,16 @@
   gap: 8px;
 }
 
+.mark-read-btn {
+  background: #e8f5e9 !important;
+  border-color: #a5d6a7 !important;
+  color: #2e7d32 !important;
+}
+
+.mark-read-btn:hover {
+  background: #c8e6c9 !important;
+}
+
 .user-avatar {
   width: 24px;
   height: 24px;

@@ -27,15 +27,19 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Per-Repo Settings** | Custom colors, names, and feed preferences |
 | **Starred Changes** | Save important updates for later |
 | **Releases Feed** | Dedicated view for version releases |
+| **New Badges** | Highlights unseen changes since your last visit |
+| **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
 
 ## Quick Start
 
-1. **Set up environment variables** in `.env` (repo root):
+1. **Set up environment variables** in `server/.env`:
    ```
    DATABASE_URL=postgresql://...
    GOOGLE_CLIENT_ID=your-google-client-id
    GOOGLE_CLIENT_SECRET=your-google-client-secret
    SESSION_SECRET=your-session-secret
+   OPENAI_API_KEY=sk-...
+   GITHUB_TOKEN=ghp_...
    ```
 
 2. **Install & run:**
@@ -44,16 +48,16 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
    npm run dev
    ```
 
-3. **Login with Google** and configure API keys in Settings
+3. **Login with Google** and start adding repos
 
-4. **Add a repo to track**
+## Server Configuration
 
-## API Keys Required
+Add these API keys to your server `.env` file:
 
 | Key | Purpose | Get it at |
 |-----|---------|-----------|
-| **OpenAI API Key** | Classifies PR changes | [platform.openai.com](https://platform.openai.com/api-keys) |
-| **GitHub Token** | Higher rate limits (5k/hr vs 60/hr) | [github.com/settings/tokens](https://github.com/settings/tokens) |
+| **OPENAI_API_KEY** | Classifies PR changes | [platform.openai.com](https://platform.openai.com/api-keys) |
+| **GITHUB_TOKEN** | Higher rate limits (5k/hr vs 60/hr) | [github.com/settings/tokens](https://github.com/settings/tokens) |
 
 > **Note:** GitHub tokens expire. Fine-grained tokens default to 30 days.
 
@@ -64,6 +68,16 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 - **Database:** PostgreSQL (Railway) + Prisma 7
 - **Auth:** Google OAuth via Passport.js
 - **APIs:** GitHub (Octokit), OpenAI (gpt-4o-mini)
+
+## Planned features
+
+- [ ] Fix repo owner images not displaying
+- [ ] User profile page
+- [ ] Show API usage to users
+- [ ] Suggest already pulled repos
+- [ ] Background cron job for repo updates (currently on-demand)
+- [ ] User repo semantic queries with questions like "When was support for guardrails added"?
+- [ ] Stripe integration for paid plans
 
 ## License
 
