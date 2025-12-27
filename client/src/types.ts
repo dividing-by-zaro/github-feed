@@ -53,12 +53,11 @@ export interface Repo {
   owner: string;
   name: string;
   url: string;
-  description: string;
-  addedAt: string;
-  avatarUrl?: string;
+  description?: string | null;
+  avatarUrl?: string | null;
   // Custom settings
-  displayName?: string;
-  customColor?: string;
+  displayName?: string | null;
+  customColor?: string | null;
   feedSignificance?: Significance[]; // Which significance levels show in "All Repos" feed
 }
 

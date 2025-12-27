@@ -30,19 +30,23 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 
 ## Quick Start
 
-1. **Install & run:**
+1. **Set up environment variables** in `.env` (repo root):
+   ```
+   DATABASE_URL=postgresql://...
+   GOOGLE_CLIENT_ID=your-google-client-id
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+   SESSION_SECRET=your-session-secret
+   ```
+
+2. **Install & run:**
    ```bash
    npm install
    npm run dev
    ```
 
-2. **Configure API keys** (Settings button):
+3. **Login with Google** and configure API keys in Settings
 
-   ![Settings](docs/screenshots/settings-modal.png)
-
-3. **Add a repo to track:**
-
-   ![Add Repository](docs/screenshots/add-repo-modal.png)
+4. **Add a repo to track**
 
 ## API Keys Required
 
@@ -57,6 +61,8 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 
 - **Frontend:** React + Vite + TypeScript
 - **Backend:** Node.js + Express + TypeScript
+- **Database:** PostgreSQL (Railway) + Prisma 7
+- **Auth:** Google OAuth via Passport.js
 - **APIs:** GitHub (Octokit), OpenAI (gpt-4o-mini)
 
 ## License

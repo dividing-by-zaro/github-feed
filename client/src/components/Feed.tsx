@@ -97,8 +97,8 @@ export default function Feed({
             key={item.id}
             feedGroup={item}
             repoName={repo?.displayName || repo?.name || item.repoId}
-            avatarUrl={repo?.avatarUrl}
-            customColor={repo?.customColor}
+            avatarUrl={repo?.avatarUrl ?? undefined}
+            customColor={repo?.customColor ?? undefined}
             starredIds={starredIds}
             onToggleStar={onToggleStar}
           />

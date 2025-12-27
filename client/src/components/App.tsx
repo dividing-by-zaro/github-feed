@@ -1,11 +1,18 @@
-import { useState, useMemo } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
-import { analyzeRepo } from '../api';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
+import {
+  getAllFeedData,
+  addRepo,
+  deleteRepo,
+  updateRepo,
+  getStarredChanges,
+  starChange,
+  unstarChange,
+} from '../api';
 import type {
   Repo,
   FeedGroup,
   Release,
-  UserSettings,
   Category,
   Significance,
 } from '../types';
@@ -16,33 +23,17 @@ import FilterBar from './FilterBar';
 import AddRepoModal from './AddRepoModal';
 import SettingsModal from './SettingsModal';
 import RepoSettingsModal from './RepoSettingsModal';
+import LoginPage from './LoginPage';
 import './App.css';
 
-const DEFAULT_SETTINGS: UserSettings = {
-  openaiApiKey: '',
-  githubToken: '',
-  visibleSignificance: ['major', 'minor', 'patch'],
-  visibleCategories: ALL_CATEGORIES,
-};
-
 export default function App() {
-  const [repos, setRepos] = useLocalStorage<Repo[]>('github-feed-repos', []);
-  const [feedGroups, setFeedGroups] = useLocalStorage<FeedGroup[]>(
-    'github-feed-groups',
-    []
-  );
-  const [releases, setReleases] = useLocalStorage<Release[]>(
-    'github-feed-releases',
-    []
-  );
-  const [starredIds, setStarredIds] = useLocalStorage<string[]>(
-    'github-feed-starred',
-    []
-  );
-  const [settings, setSettings] = useLocalStorage<UserSettings>(
-    'github-feed-settings',
-    DEFAULT_SETTINGS
-  );
+  const { user, isLoading: authLoading, logout, refetchUser } = useAuth();
+
+  const [repos, setRepos] = useState<Repo[]>([]);
+  const [feedGroups, setFeedGroups] = useState<FeedGroup[]>([]);
+  const [releases, setReleases] = useState<Release[]>([]);
+  const [starredIds, setStarredIds] = useState<string[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'all' | 'starred' | 'releases'>('all');
@@ -53,14 +44,50 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const [filterSignificance, setFilterSignificance] = useState<Significance[]>(
-    settings.visibleSignificance
+    user?.visibleSignificance as Significance[] || ['major', 'minor', 'patch']
   );
   const [filterCategories, setFilterCategories] = useState<Category[]>(
-    settings.visibleCategories
+    user?.visibleCategories as Category[] || ALL_CATEGORIES
   );
 
+  // Load initial data when user is authenticated
+  const loadData = useCallback(async () => {
+    if (!user) return;
+
+    setDataLoading(true);
+    try {
+      const [feedData, starred] = await Promise.all([
+        getAllFeedData(),
+        getStarredChanges(),
+      ]);
+      setRepos(feedData.repos);
+      setFeedGroups(feedData.feedGroups);
+      setReleases(feedData.releases);
+      setStarredIds(starred);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+      setError('Failed to load data');
+    } finally {
+      setDataLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Update filters when user settings change
+  useEffect(() => {
+    if (user?.visibleSignificance) {
+      setFilterSignificance(user.visibleSignificance as Significance[]);
+    }
+    if (user?.visibleCategories) {
+      setFilterCategories(user.visibleCategories as Category[]);
+    }
+  }, [user?.visibleSignificance, user?.visibleCategories]);
+
   const handleAddRepo = async (repoUrl: string) => {
-    if (!settings.openaiApiKey) {
+    if (!user?.hasOpenaiKey) {
       setError('Please set your OpenAI API key in settings first');
       setShowSettingsModal(true);
       return;
@@ -70,27 +97,36 @@ export default function App() {
     setError(null);
 
     try {
-      const result = await analyzeRepo(repoUrl, settings.openaiApiKey, settings.githubToken);
+      const result = await addRepo(repoUrl);
 
+      // Add new data to state
       const newRepo: Repo = {
-        id: `${result.repo.owner}/${result.repo.name}`,
-        owner: result.repo.owner,
-        name: result.repo.name,
-        url: repoUrl,
-        description: result.repo.description,
-        addedAt: new Date().toISOString(),
-        avatarUrl: result.repo.avatarUrl,
+        id: result.id,
+        owner: result.owner,
+        name: result.name,
+        url: result.url,
+        description: result.description,
+        avatarUrl: result.avatarUrl,
+        displayName: result.displayName,
+        customColor: result.customColor,
+        feedSignificance: result.feedSignificance,
       };
 
-      // Check if repo already exists
-      if (repos.some((r) => r.id === newRepo.id)) {
-        setError('This repo is already being tracked');
-        return;
-      }
-
       setRepos((prev) => [...prev, newRepo]);
-      setFeedGroups((prev) => [...prev, ...result.feedGroups]);
-      setReleases((prev) => [...prev, ...result.releases]);
+      setFeedGroups((prev) => [
+        ...prev,
+        ...result.feedGroups.map((fg: FeedGroup) => ({
+          ...fg,
+          repoId: `${result.owner}/${result.name}`,
+        })),
+      ]);
+      setReleases((prev) => [
+        ...prev,
+        ...result.releases.map((r: Release) => ({
+          ...r,
+          repoId: `${result.owner}/${result.name}`,
+        })),
+      ]);
       setShowAddModal(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add repo');
@@ -99,54 +135,85 @@ export default function App() {
     }
   };
 
-  const handleRemoveRepo = (repoId: string) => {
-    setRepos((prev) => prev.filter((r) => r.id !== repoId));
-    setFeedGroups((prev) => prev.filter((g) => g.repoId !== repoId));
-    setReleases((prev) => prev.filter((r) => r.repoId !== repoId));
-    if (selectedRepoId === repoId) {
-      setSelectedRepoId(null);
+  const handleRemoveRepo = async (repoId: string) => {
+    try {
+      // Find the repo to get its database ID
+      const repo = repos.find((r) => r.id === repoId);
+      if (!repo) return;
+
+      await deleteRepo(repo.id);
+
+      setRepos((prev) => prev.filter((r) => r.id !== repoId));
+      setFeedGroups((prev) => prev.filter((g) => g.repoId !== repoId));
+      setReleases((prev) => prev.filter((r) => r.repoId !== repoId));
+      if (selectedRepoId === repoId) {
+        setSelectedRepoId(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete repo');
     }
   };
 
-  const handleUpdateRepo = (updatedRepo: Repo) => {
-    setRepos((prev) =>
-      prev.map((r) => (r.id === updatedRepo.id ? updatedRepo : r))
-    );
-    setRepoSettingsTarget(null);
+  const handleUpdateRepo = async (updatedRepo: Repo) => {
+    try {
+      await updateRepo(updatedRepo.id, {
+        displayName: updatedRepo.displayName,
+        customColor: updatedRepo.customColor,
+        feedSignificance: updatedRepo.feedSignificance,
+      });
+
+      setRepos((prev) =>
+        prev.map((r) => (r.id === updatedRepo.id ? updatedRepo : r))
+      );
+      setRepoSettingsTarget(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update repo');
+    }
   };
 
-  const handleToggleStar = (changeId: string) => {
+  const handleToggleStar = async (changeId: string) => {
+    const isStarred = starredIds.includes(changeId);
+
+    // Optimistic update
     setStarredIds((prev) =>
-      prev.includes(changeId)
-        ? prev.filter((id) => id !== changeId)
-        : [...prev, changeId]
+      isStarred ? prev.filter((id) => id !== changeId) : [...prev, changeId]
     );
+
+    try {
+      if (isStarred) {
+        await unstarChange(changeId);
+      } else {
+        await starChange(changeId);
+      }
+    } catch (err) {
+      // Revert on error
+      setStarredIds((prev) =>
+        isStarred ? [...prev, changeId] : prev.filter((id) => id !== changeId)
+      );
+      console.error('Failed to toggle star:', err);
+    }
   };
 
-  const handleSaveSettings = (newSettings: UserSettings) => {
-    setSettings(newSettings);
+  const handleSettingsSaved = () => {
     setShowSettingsModal(false);
+    refetchUser();
   };
 
   // Filter and sort feed items
   const filteredFeed = useMemo(() => {
-    // Releases view shows no feed groups
     if (viewMode === 'releases') {
       return [];
     }
 
     let groups = [...feedGroups];
 
-    // Filter by selected repo
     if (selectedRepoId) {
       groups = groups.filter((g) => g.repoId === selectedRepoId);
     }
 
-    // Filter changes within groups
     groups = groups
       .map((group) => {
-        const repo = repos.find((r) => r.id === group.repoId);
-        // In "all" view with no repo selected, use per-repo significance settings
+        const repo = repos.find((r) => `${r.owner}/${r.name}` === group.repoId);
         const significanceFilter =
           !selectedRepoId && viewMode === 'all' && repo?.feedSignificance
             ? repo.feedSignificance
@@ -163,7 +230,6 @@ export default function App() {
       })
       .filter((group) => group.changes.length > 0);
 
-    // If showing starred, only show groups with starred changes
     if (viewMode === 'starred') {
       groups = groups
         .map((group) => ({
@@ -175,7 +241,6 @@ export default function App() {
         .filter((group) => group.changes.length > 0);
     }
 
-    // Sort by date, newest first
     return groups.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
@@ -189,9 +254,7 @@ export default function App() {
     starredIds,
   ]);
 
-  // Get releases for display (not in starred view)
   const filteredReleases = useMemo(() => {
-    // Starred view shows no releases
     if (viewMode === 'starred') {
       return [];
     }
@@ -205,6 +268,23 @@ export default function App() {
     );
   }, [releases, selectedRepoId, viewMode]);
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="app">
+        <div className="loading">
+          <div className="loading-spinner" />
+          <div className="loading-text">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!user) {
+    return <LoginPage />;
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -212,6 +292,12 @@ export default function App() {
         <div className="header-actions">
           <button onClick={() => setShowSettingsModal(true)}>Settings</button>
           <button onClick={() => setShowAddModal(true)}>Add Repo</button>
+          <button onClick={logout} className="logout-btn">
+            {user.avatarUrl && (
+              <img src={user.avatarUrl} alt="" className="user-avatar" />
+            )}
+            Logout
+          </button>
         </div>
       </header>
 
@@ -246,11 +332,15 @@ export default function App() {
             onCategoriesChange={setFilterCategories}
           />
 
-          {isLoading ? (
+          {isLoading || dataLoading ? (
             <div className="loading">
               <div className="loading-spinner" />
-              <div className="loading-text">Analyzing repository...</div>
-              <div className="loading-subtext">Fetching PRs and classifying changes</div>
+              <div className="loading-text">
+                {isLoading ? 'Analyzing repository...' : 'Loading feed...'}
+              </div>
+              {isLoading && (
+                <div className="loading-subtext">Fetching PRs and classifying changes</div>
+              )}
             </div>
           ) : (
             <Feed
@@ -274,8 +364,9 @@ export default function App() {
 
       {showSettingsModal && (
         <SettingsModal
-          settings={settings}
-          onSave={handleSaveSettings}
+          hasOpenaiKey={user.hasOpenaiKey}
+          hasGithubToken={user.hasGithubToken}
+          onSave={handleSettingsSaved}
           onClose={() => setShowSettingsModal(false)}
         />
       )}

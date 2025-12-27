@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  avatarUrl     String?
+  googleId      String   @unique
+
+  // API keys (stored encrypted in production)
+  openaiApiKey  String?
+  githubToken   String?
+
+  // Preferences
+  visibleSignificance String[] @default(["major", "minor", "patch"])
+  visibleCategories   String[] @default(["feature", "enhancement", "bugfix", "breaking", "deprecation", "performance", "security", "docs"])
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  repos         Repo[]
+  starredChanges StarredChange[]
+}
+
+model Repo {
+  id            String   @id @default(cuid())
+  owner         String
+  name          String
+  url           String
+  description   String?
+  avatarUrl     String?
+  displayName   String?
+  customColor   String?
+  feedSignificance String[] @default(["major", "minor", "patch", "internal"])
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  feedGroups    FeedGroup[]
+  releases      Release[]
+
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, owner, name])
+}
+
+model FeedGroup {
+  id        String   @id @default(cuid())
+  type      String   // 'pr' | 'daily'
+  title     String
+  prNumber  Int?
+  prUrl     String?
+  date      DateTime
+  changes   Json     // Array of Change objects
+
+  repoId    String
+  repo      Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+}
+
+model Release {
+  id        String   @id @default(cuid())
+  title     String
+  tagName   String
+  url       String
+  date      DateTime
+  body      String?
+
+  repoId    String
+  repo      Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+}
+
+model StarredChange {
+  id        String   @id @default(cuid())
+  changeId  String   // e.g., "owner/repo-pr-123"
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, changeId])
+}
