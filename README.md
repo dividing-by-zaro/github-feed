@@ -71,7 +71,8 @@ Add these API keys to your server `.env` file:
 
 ## Planned features
 
-- [ ] Fix repo owner images not displaying
+- [x] Fix repo owner images not displaying
+- [x] Persistent sessions (stay logged in across page reloads)
 - [ ] User profile page
 - [ ] Show API usage to users
 - [ ] Suggest already pulled repos

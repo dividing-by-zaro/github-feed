@@ -4,6 +4,7 @@ import './env.js';
 import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
+import pgSession from 'connect-pg-simple';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -11,6 +12,7 @@ import passport, { initializePassport } from './auth/passport.js';
 import authRouter from './routes/auth.js';
 import reposRouter from './routes/repos.js';
 import userRouter from './routes/user.js';
+import { pool } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,9 +33,15 @@ app.use(cors({
 
 app.use(express.json());
 
-// Session configuration
+// Session configuration with PostgreSQL store
+const PgStore = pgSession(session);
+
 app.use(
   session({
+    store: new PgStore({
+      pool,
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
     resave: false,
     saveUninitialized: false,

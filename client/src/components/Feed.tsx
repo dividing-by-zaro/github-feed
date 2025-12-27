@@ -40,7 +40,8 @@ export default function Feed({
   }
 
   const getRepo = (repoId: string) => {
-    return repos.find((r) => r.id === repoId);
+    // repoId is in "owner/name" format, so match against that
+    return repos.find((r) => `${r.owner}/${r.name}` === repoId);
   };
 
   return (

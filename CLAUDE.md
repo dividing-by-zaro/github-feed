@@ -65,7 +65,10 @@ github-feed/
 
 - **Google OAuth**: Users authenticate via Google using Passport.js
 - **Session-based**: Express sessions store auth state (7-day cookie expiry, domain set to `localhost` in dev)
+- **Persistent sessions**: Uses `connect-pg-simple` to store sessions in PostgreSQL (survives server restarts)
+- **Session table**: Auto-created `session` table (outside Prisma schema) with `sid`, `sess`, `expire` columns
 - **Prisma 7 adapter**: Uses `@prisma/adapter-pg` for database connection
+- **Shared pg pool**: `db.ts` exports both `prisma` client and raw `pool` (used by session store)
 - **ES module env loading**: `env.ts` must be imported first in `index.ts` to load dotenv before other imports (Prisma client initializes on import)
 
 ### Auth Flow
