@@ -5,15 +5,15 @@ import {
   addRepo,
   deleteRepo,
   updateRepo,
-  getStarredChanges,
-  starChange,
-  unstarChange,
+  getStarredUpdates,
+  starUpdate,
+  unstarUpdate,
   markAsSeen,
   fetchRecentUpdates,
 } from '../api';
 import type {
   Repo,
-  FeedGroup,
+  Update,
   Release,
   Category,
   Significance,
@@ -33,7 +33,7 @@ export default function App() {
   const { user, isLoading: authLoading, logout, refetchUser } = useAuth();
 
   const [repos, setRepos] = useState<Repo[]>([]);
-  const [feedGroups, setFeedGroups] = useState<FeedGroup[]>([]);
+  const [updates, setUpdates] = useState<Update[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
   const [starredIds, setStarredIds] = useState<string[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
@@ -62,10 +62,10 @@ export default function App() {
     try {
       const [feedData, starred] = await Promise.all([
         getAllFeedData(),
-        getStarredChanges(),
+        getStarredUpdates(),
       ]);
       setRepos(feedData.repos);
-      setFeedGroups(feedData.feedGroups);
+      setUpdates(feedData.updates);
       setReleases(feedData.releases);
       setStarredIds(starred);
     } catch (err) {
@@ -111,10 +111,10 @@ export default function App() {
       };
 
       setRepos((prev) => [...prev, newRepo]);
-      setFeedGroups((prev) => [
+      setUpdates((prev) => [
         ...prev,
-        ...result.feedGroups.map((fg: FeedGroup) => ({
-          ...fg,
+        ...result.updates.map((u: Update) => ({
+          ...u,
           repoId: `${result.owner}/${result.name}`,
         })),
       ]);
@@ -141,7 +141,7 @@ export default function App() {
       await deleteRepo(repo.id);
 
       setRepos((prev) => prev.filter((r) => r.id !== repoId));
-      setFeedGroups((prev) => prev.filter((g) => g.repoId !== repoId));
+      setUpdates((prev) => prev.filter((u) => u.repoId !== repoId));
       setReleases((prev) => prev.filter((r) => r.repoId !== repoId));
       if (selectedRepoId === repoId) {
         setSelectedRepoId(null);
@@ -169,22 +169,22 @@ export default function App() {
     }
   };
 
-  const handleToggleStar = async (changeId: string) => {
-    const isStarred = starredIds.includes(changeId);
+  const handleToggleStar = async (updateId: string) => {
+    const isStarred = starredIds.includes(updateId);
 
     setStarredIds((prev) =>
-      isStarred ? prev.filter((id) => id !== changeId) : [...prev, changeId]
+      isStarred ? prev.filter((id) => id !== updateId) : [...prev, updateId]
     );
 
     try {
       if (isStarred) {
-        await unstarChange(changeId);
+        await unstarUpdate(updateId);
       } else {
-        await starChange(changeId);
+        await starUpdate(updateId);
       }
     } catch (err) {
       setStarredIds((prev) =>
-        isStarred ? [...prev, changeId] : prev.filter((id) => id !== changeId)
+        isStarred ? [...prev, updateId] : prev.filter((id) => id !== updateId)
       );
       console.error('Failed to toggle star:', err);
     }
@@ -204,8 +204,8 @@ export default function App() {
 
     const result = await fetchRecentUpdates(selectedRepoId);
 
-    if (result.newFeedGroups.length > 0) {
-      setFeedGroups((prev) => [...prev, ...result.newFeedGroups]);
+    if (result.newUpdates.length > 0) {
+      setUpdates((prev) => [...prev, ...result.newUpdates]);
     }
 
     return {
@@ -216,20 +216,20 @@ export default function App() {
   }, [selectedRepoId]);
 
   const hasNewItems = useMemo(() => {
-    if (!user?.lastSeenAt) return feedGroups.length > 0 || releases.length > 0;
+    if (!user?.lastSeenAt) return updates.length > 0 || releases.length > 0;
     const lastSeen = new Date(user.lastSeenAt);
     return (
-      feedGroups.some((g) => new Date(g.date) > lastSeen) ||
-      releases.some((r) => new Date(r.date) > lastSeen)
+      updates.some((u) => new Date(u.date) > lastSeen) ||
+      releases.some((r) => new Date(r.publishedAt) > lastSeen)
     );
-  }, [feedGroups, releases, user?.lastSeenAt]);
+  }, [updates, releases, user?.lastSeenAt]);
 
   const filteredFeed = useMemo(() => {
     if (viewMode === 'releases') {
       return [];
     }
 
-    let groups = [...feedGroups];
+    let filtered = [...updates];
 
     const selectedRepo = selectedRepoId
       ? repos.find((r) => r.id === selectedRepoId)
@@ -238,56 +238,45 @@ export default function App() {
       ? `${selectedRepo.owner}/${selectedRepo.name}`
       : null;
 
+    // Filter by selected repo
     if (selectedRepoKey) {
-      groups = groups.filter((g) => g.repoId === selectedRepoKey);
+      filtered = filtered.filter((u) => u.repoId === selectedRepoKey);
     }
 
-    groups = groups
-      .map((group) => {
-        const repo = repos.find((r) => `${r.owner}/${r.name}` === group.repoId);
+    // Filter by significance and category
+    filtered = filtered.filter((update) => {
+      const repo = repos.find((r) => `${r.owner}/${r.name}` === update.repoId);
 
-        if (selectedRepoKey) {
-          const repoSignificance = repo?.feedSignificance ?? ['major', 'minor', 'patch', 'internal'];
-          return {
-            ...group,
-            changes: group.changes.filter((change) =>
-              repoSignificance.includes(change.significance)
-            ),
-          };
-        }
+      if (selectedRepoKey) {
+        // When viewing a specific repo, use that repo's significance settings
+        const repoSignificance = repo?.feedSignificance ?? ['major', 'minor', 'patch', 'internal'];
+        return repoSignificance.includes(update.significance);
+      }
 
-        const repoSignificance = repo?.feedSignificance ?? filterSignificance;
-        const effectiveSignificance = filterSignificance.filter((s) =>
-          repoSignificance.includes(s)
-        );
+      // For "all repos" view, combine repo-specific and global filters
+      const repoSignificance = repo?.feedSignificance ?? filterSignificance;
+      const effectiveSignificance = filterSignificance.filter((s) =>
+        repoSignificance.includes(s)
+      );
 
-        return {
-          ...group,
-          changes: group.changes.filter(
-            (change) =>
-              effectiveSignificance.includes(change.significance) &&
-              filterCategories.includes(change.category)
-          ),
-        };
-      })
-      .filter((group) => group.changes.length > 0);
+      return (
+        effectiveSignificance.includes(update.significance) &&
+        filterCategories.includes(update.category)
+      );
+    });
 
+    // Filter starred
     if (viewMode === 'starred') {
-      groups = groups
-        .map((group) => ({
-          ...group,
-          changes: group.changes.filter((change) =>
-            starredIds.includes(`${group.repoId}-${change.id}`)
-          ),
-        }))
-        .filter((group) => group.changes.length > 0);
+      filtered = filtered.filter((update) =>
+        starredIds.includes(`${update.repoId}-${update.id}`)
+      );
     }
 
-    return groups.sort(
+    return filtered.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }, [
-    feedGroups,
+    updates,
     repos,
     selectedRepoId,
     filterSignificance,
@@ -325,7 +314,7 @@ export default function App() {
       });
     }
     return rel.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
   }, [releases, repos, selectedRepoId, viewMode, showReleases]);
 
@@ -499,7 +488,7 @@ export default function App() {
                 </div>
               ) : (
                 <Feed
-                  feedGroups={filteredFeed}
+                  updates={filteredFeed}
                   releases={filteredReleases}
                   starredIds={starredIds}
                   onToggleStar={handleToggleStar}

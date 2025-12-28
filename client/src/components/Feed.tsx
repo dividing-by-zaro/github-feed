@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import type { FeedGroup, Release, Repo } from '../types';
+import type { Update, Release, Repo } from '../types';
 import { getRepoColor } from '../utils/colors';
-import FeedGroupComponent from './FeedGroup';
+import UpdateCard from './UpdateCard';
 import DateHeader from './DateHeader';
 import GapIndicator from './GapIndicator';
 import { RefreshCw, Tag, Sparkles } from 'lucide-react';
 
 interface FeedProps {
-  feedGroups: FeedGroup[];
+  updates: Update[];
   releases: Release[];
   starredIds: string[];
-  onToggleStar: (changeId: string) => void;
+  onToggleStar: (updateId: string) => void;
   onReleaseClick: (release: Release, repoName: string) => void;
   repos: Repo[];
   lastSeenAt: string | null;
@@ -19,7 +19,7 @@ interface FeedProps {
 }
 
 export default function Feed({
-  feedGroups,
+  updates,
   releases,
   starredIds,
   onToggleStar,
@@ -83,11 +83,16 @@ export default function Feed({
     });
   };
 
-  // Merge feed groups and releases, sorted by date
+  // Helper to get date from item (handles both Update.date and Release.publishedAt)
+  const getItemDate = (item: { date?: string; publishedAt?: string }) => {
+    return item.date ?? item.publishedAt ?? new Date().toISOString();
+  };
+
+  // Merge updates and releases, sorted by date
   const allItems = [
-    ...feedGroups.map((g) => ({ ...g, itemType: 'feedGroup' as const })),
+    ...updates.map((u) => ({ ...u, itemType: 'update' as const })),
     ...releases.map((r) => ({ ...r, itemType: 'release' as const })),
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  ].sort((a, b) => new Date(getItemDate(b)).getTime() - new Date(getItemDate(a)).getTime());
 
   // Group items by date
   type FeedItem = (typeof allItems)[number];
@@ -101,7 +106,7 @@ export default function Feed({
   let currentGroup: DateGroup | null = null;
 
   for (const item of allItems) {
-    const itemDate = new Date(item.date);
+    const itemDate = new Date(getItemDate(item));
     const dateKey = itemDate.toISOString().split('T')[0];
 
     if (!currentGroup || currentGroup.dateKey !== dateKey) {
@@ -198,7 +203,7 @@ export default function Feed({
       const repo = getRepo(item.repoId);
       const repoName = repo?.displayName || repo?.name || item.repoId;
       const repoColor = repo?.customColor || getRepoColor(item.repoId);
-      const itemIsNew = isNew(item.date);
+      const itemIsNew = isNew(getItemDate(item));
 
       return (
         <div
@@ -252,15 +257,15 @@ export default function Feed({
 
     const repo = getRepo(item.repoId);
     return (
-      <FeedGroupComponent
+      <UpdateCard
         key={item.id}
-        feedGroup={item}
+        update={item}
         repoName={repo?.displayName || repo?.name || item.repoId}
         avatarUrl={repo?.avatarUrl ?? undefined}
         customColor={repo?.customColor ?? undefined}
         starredIds={starredIds}
         onToggleStar={onToggleStar}
-        isNew={isNew(item.date)}
+        isNew={isNew(getItemDate(item))}
       />
     );
   };

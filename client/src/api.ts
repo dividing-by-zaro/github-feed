@@ -1,4 +1,4 @@
-import type { Repo, FeedGroup, Release, Category, Significance } from './types';
+import type { Repo, Update, Release, Category, Significance } from './types';
 
 // API base URL - uses environment variable in dev, empty string in production (same origin)
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -51,19 +51,19 @@ export async function updateUserSettings(settings: {
   });
 }
 
-// Starred changes endpoints
-export async function getStarredChanges(): Promise<string[]> {
+// Starred updates endpoints
+export async function getStarredUpdates(): Promise<string[]> {
   return apiFetch('/api/user/starred');
 }
 
-export async function starChange(changeId: string): Promise<void> {
-  return apiFetch(`/api/user/starred/${encodeURIComponent(changeId)}`, {
+export async function starUpdate(updateId: string): Promise<void> {
+  return apiFetch(`/api/user/starred/${encodeURIComponent(updateId)}`, {
     method: 'POST',
   });
 }
 
-export async function unstarChange(changeId: string): Promise<void> {
-  return apiFetch(`/api/user/starred/${encodeURIComponent(changeId)}`, {
+export async function unstarUpdate(updateId: string): Promise<void> {
+  return apiFetch(`/api/user/starred/${encodeURIComponent(updateId)}`, {
     method: 'DELETE',
   });
 }
@@ -77,13 +77,13 @@ export async function markAsSeen(): Promise<{ lastSeenAt: string }> {
 
 // Repo endpoints
 export interface RepoWithData extends Repo {
-  feedGroups: FeedGroup[];
+  updates: Update[];
   releases: Release[];
 }
 
 export interface FeedData {
   repos: Repo[];
-  feedGroups: FeedGroup[];
+  updates: Update[];
   releases: Release[];
 }
 
@@ -123,7 +123,7 @@ export async function getAllFeedData(): Promise<FeedData> {
 }
 
 export interface FetchRecentResponse {
-  newFeedGroups: FeedGroup[];
+  newUpdates: Update[];
   totalPRsFetched: number;
   newPRsClassified: number;
   lastActivityAt: string | null;

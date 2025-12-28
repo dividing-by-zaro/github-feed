@@ -29,9 +29,12 @@ npm run dev:client
 
 # Run only server (port 3001)
 npm run dev:server
+
+# Kill dev servers (use when ports 3001/5173 are stuck)
+pkill -f "tsx watch.*github-feed"; pkill -f "vite.*github-feed"
 ```
 
-**Restart preference**: When asked to restart the dev servers, just run `npm run dev` without checking if they started successfully.
+**Restart preference**: When asked to restart the dev servers, first kill existing processes with the pkill command above, then run `npm run dev`.
 
 ## Project Structure
 
@@ -59,27 +62,26 @@ github-feed/
 
 ## Key Architecture Decisions
 
-- **One classification per PR**: LLM returns a single high-level summary per PR, not multiple granular changes
-- **Daily batching**: 2+ PRs on the same day get grouped into a "daily batch"
-- **Shared indexing layer**: Global tables (`GlobalRepo`, `GlobalFeedGroup`, `GlobalRelease`) store indexed data once; users subscribe via `UserRepo` with custom settings
+- **Semantic PR grouping**: LLM groups related PRs (e.g., feature + tests + docs) into a single "Update" with one summary
+- **Batched parallel LLM calls**: PRs grouped in batches of 8, processed in parallel (temporally close PRs are more likely to be related)
+- **Fetch limits**: Initial index limited to 50 PRs and 20 releases to avoid token limits and long processing times
+- **Shared indexing layer**: Global tables (`GlobalRepo`, `GlobalUpdate`, `GlobalRelease`) store indexed data once; users subscribe via `UserRepo` with custom settings
 - **Per-user settings**: Each user's repo subscription has custom color, display name, and significance filter (stored in `UserRepo`)
 - **Timeline view with date grouping**: Feed items grouped by date with sticky DateHeader components and GapIndicator showing time gaps between updates
-- **Page header with filters**: Title shows current view (All Repos/Starred/Releases/repo name) with dropdown filters inline
-- **Dropdown filters**: FilterBar uses dropdown menus with checkboxes for multi-select (levels & categories)
-- **Manage Repos page**: Accessible from user menu dropdown, shows all subscribed repos with sorting (date added, alphabetical), inline delete confirmation, and click-to-open settings modal. Component: `MyReposPage.tsx`, view mode: `'my-repos'`
-- **Tailwind CSS v4**: Uses `@theme inline` for custom color tokens (cream, yellow, mint, pink, lavender, coral, etc.) and `@source` directive for template scanning. Custom component classes (brutal-card, brutal-btn variants) defined in index.css
+- **Tailwind CSS v4**: Uses `@theme inline` for custom color tokens and `@source` directive. Custom component classes (brutal-card, brutal-btn variants) defined in index.css
 
 ## Database Schema
 
 **Global tables** (shared across all users):
 - `GlobalRepo` - Repo metadata, lastFetchedAt for staleness check
-- `GlobalFeedGroup` - Classified PRs with AI-generated summaries
+- `GlobalUpdate` - Semantic updates (grouped PRs) with AI-generated summaries
+- `GlobalPR` - Individual PRs linked to their parent Update
 - `GlobalRelease` - Releases with AI-generated summaries
 
 **User tables**:
 - `User` - Auth info, preferences, lastSeenAt
-- `UserRepo` - User's subscription to a GlobalRepo with custom displayName, customColor, feedSignificance, showReleases, createdAt (subscription date)
-- `StarredChange` - User's starred items
+- `UserRepo` - User's subscription to a GlobalRepo with custom settings
+- `StarredUpdate` - User's starred items
 
 ## Authentication
 
@@ -125,7 +127,7 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 - **lastFetchedAt**: `GlobalRepo.lastFetchedAt` tracks when repo was last checked for updates
 - **lastSeenAt**: Each user tracks when they last marked the feed as read (for "new" badges)
 - **Incremental updates**: Only new PRs/releases (not already in database) are fetched and classified
-- **Load older updates**: `POST /repos/:id/fetch-recent` fetches last 10 PRs regardless of date, classifies new ones, returns GitHub's `pushedAt` timestamp for "last activity" display
+- **Load older updates**: `POST /repos/:id/fetch-recent` paginates backwards from oldest known PR, fetching 10 older PRs each time
 
 ## Classification Categories
 

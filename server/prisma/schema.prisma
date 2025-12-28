@@ -1,108 +1,130 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  avatarUrl     String?
-  googleId      String   @unique
+model GlobalUpdate {
+  id           String     @id @default(cuid())
+  title        String
+  summary      String?
+  category     String     @default("enhancement")
+  significance String     @default("minor")
+  date         DateTime
+  prCount      Int        @default(1)
+  commitCount  Int        @default(0)
+  globalRepoId String
+  createdAt    DateTime   @default(now())
+  globalRepo   GlobalRepo @relation(fields: [globalRepoId], references: [id], onDelete: Cascade)
+  prs          GlobalPR[]
 
-  // Preferences
-  visibleSignificance String[] @default(["major", "minor", "patch"])
-  visibleCategories   String[] @default(["feature", "enhancement", "bugfix", "breaking", "deprecation", "performance", "security", "docs"])
-
-  // Feed tracking
-  lastSeenAt    DateTime?  // When user last marked feed as read
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  userRepos      UserRepo[]
-  starredChanges StarredChange[]
+  @@index([globalRepoId, date])
 }
 
-// Global repo data shared across all users
+model GlobalPR {
+  id           String        @id @default(cuid())
+  prNumber     Int
+  title        String
+  body         String?
+  url          String
+  mergedAt     DateTime
+  author       String?
+  labels       String[]
+  commits      Json
+  updateId     String?
+  globalRepoId String
+  createdAt    DateTime      @default(now())
+  update       GlobalUpdate? @relation(fields: [updateId], references: [id])
+  globalRepo   GlobalRepo    @relation(fields: [globalRepoId], references: [id], onDelete: Cascade)
+
+  @@unique([globalRepoId, prNumber])
+  @@index([updateId])
+}
+
+model GlobalRelease {
+  id            String     @id @default(cuid())
+  title         String
+  tagName       String
+  url           String
+  publishedAt   DateTime?
+  body          String?
+  summary       String?
+  releaseType   String?
+  baseVersion   String?
+  clusterId     String?
+  isClusterHead Boolean    @default(true)
+  globalRepoId  String
+  createdAt     DateTime   @default(now())
+  globalRepo    GlobalRepo @relation(fields: [globalRepoId], references: [id], onDelete: Cascade)
+
+  @@unique([globalRepoId, tagName])
+  @@index([clusterId])
+}
+
 model GlobalRepo {
-  id            String   @id @default(cuid())
+  id            String          @id @default(cuid())
   owner         String
   name          String
   url           String
   description   String?
   avatarUrl     String?
-
-  createdAt     DateTime @default(now())
-  lastFetchedAt DateTime?  // When we last checked GitHub for updates
-
-  feedGroups    GlobalFeedGroup[]
+  createdAt     DateTime        @default(now())
+  lastFetchedAt DateTime?
+  updates       GlobalUpdate[]
+  prs           GlobalPR[]
   releases      GlobalRelease[]
   userRepos     UserRepo[]
 
   @@unique([owner, name])
 }
 
-// Shared feed groups (classified PRs)
-model GlobalFeedGroup {
+model StarredUpdate {
   id        String   @id @default(cuid())
-  type      String   // 'pr' | 'daily'
-  title     String
-  prNumber  Int?
-  prUrl     String?
-  date      DateTime
-  changes   Json     // Array of Change objects
+  updateId  String
+  userId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  globalRepoId String
-  globalRepo   GlobalRepo @relation(fields: [globalRepoId], references: [id], onDelete: Cascade)
+  @@unique([userId, updateId])
 }
 
-// Shared releases with AI summaries
-model GlobalRelease {
-  id        String   @id @default(cuid())
-  title     String
-  tagName   String
-  url       String
-  date      DateTime
-  body      String?
-  summary   String?  // AI-generated summary of the release
-
-  globalRepoId String
-  globalRepo   GlobalRepo @relation(fields: [globalRepoId], references: [id], onDelete: Cascade)
-
-  @@unique([globalRepoId, tagName])
+model User {
+  id                  String          @id @default(cuid())
+  email               String          @unique
+  name                String?
+  avatarUrl           String?
+  googleId            String          @unique
+  visibleSignificance String[]        @default(["major", "minor", "patch"])
+  visibleCategories   String[]        @default(["feature", "enhancement", "bugfix", "breaking", "deprecation", "performance", "security", "docs"])
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime
+  lastSeenAt          DateTime?
+  starredUpdates      StarredUpdate[]
+  userRepos           UserRepo[]
 }
 
-// User's subscription to a repo with custom settings
 model UserRepo {
-  id               String   @id @default(cuid())
+  id               String     @id @default(cuid())
   displayName      String?
   customColor      String?
-  feedSignificance String[] @default(["major", "minor", "patch", "internal"])
-  showReleases     Boolean  @default(true)
-
-  userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  globalRepoId String
-  globalRepo   GlobalRepo @relation(fields: [globalRepoId], references: [id], onDelete: Cascade)
-
-  createdAt    DateTime @default(now())
+  feedSignificance String[]   @default(["major", "minor", "patch", "internal"])
+  showReleases     Boolean    @default(true)
+  userId           String
+  globalRepoId     String
+  createdAt        DateTime   @default(now())
+  globalRepo       GlobalRepo @relation(fields: [globalRepoId], references: [id], onDelete: Cascade)
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, globalRepoId])
 }
 
-model StarredChange {
-  id        String   @id @default(cuid())
-  changeId  String   // e.g., "owner/repo-pr-123"
+model session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, changeId])
+  @@index([expire], map: "IDX_session_expire")
 }

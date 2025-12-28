@@ -21,7 +21,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 
 | Feature | Description |
 |---------|-------------|
-| **Smart Classification** | AI categorizes each PR by type and significance |
+| **Semantic Grouping** | AI groups related PRs (feature + tests + docs) into single updates |
 | **Release Summaries** | AI-generated bullet points for release notes |
 | **Unified Feed** | All repos in one chronological view |
 | **Dropdown Filters** | Filter by levels and categories via dropdown menus with select/deselect all |
@@ -35,7 +35,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Manage Repos** | View all subscribed repos, sort by date or name, delete with confirmation |
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
-| **Load Older Updates** | Fetch last 10 PRs for repos with no recent changes |
+| **Load Older Updates** | Paginate backwards through PR history |
 | **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
 | **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |
 | **Neo-Brutalist Design** | Bold colors, thick borders, offset shadows via Tailwind CSS v4 |
@@ -58,7 +58,13 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
    npm run dev
    ```
 
-3. **Login with Google** and start adding repos
+3. **If ports are stuck**, kill dev servers first:
+   ```bash
+   pkill -f "tsx watch.*github-feed"; pkill -f "vite.*github-feed"
+   npm run dev
+   ```
+
+4. **Login with Google** and start adding repos
 
 ## Server Configuration
 
@@ -94,7 +100,8 @@ Add these API keys to your server `.env` file:
 - [ ] Background cron job for repo updates (currently on-demand)
 - [ ] User repo semantic queries with questions like "When was support for guardrails added"?
 - [ ] Stripe integration for paid plans
-- [ ] When a user removes a repo from the sidebar, all FeedGroups should be automatically removed from their "all" feed as well
+- [x] Semantic PR grouping (related PRs merged into single updates)
+- [x] Batched parallel LLM calls for faster indexing
 - [ ] Per-repo "refresh" button to regenerate summaries if users suspect an issue (with a gentle reminder that this costs us money)
 
 ## License

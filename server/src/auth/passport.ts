@@ -40,6 +40,7 @@ export function initializePassport() {
                 email,
                 name: profile.displayName,
                 avatarUrl: profile.photos?.[0]?.value,
+                updatedAt: new Date(),
               },
             });
           }

@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import type { PRData, CommitData, RepoInfo, Release } from '../types.js';
+import type { PRData, CommitData, RepoInfo, ReleaseData } from '../types.js';
 
 export class GitHubService {
   private octokit: Octokit;
@@ -50,7 +50,8 @@ export class GitHubService {
   async getMergedPRs(
     owner: string,
     name: string,
-    since: Date
+    since: Date,
+    limit: number = 50
   ): Promise<PRData[]> {
     const prs: PRData[] = [];
 
@@ -69,6 +70,9 @@ export class GitHubService {
 
     for await (const { data: pagePRs } of iterator) {
       for (const pr of pagePRs) {
+        // Stop if we've hit the limit
+        if (prs.length >= limit) break;
+
         // Skip if not merged or merged before our cutoff
         if (!pr.merged_at) continue;
 
@@ -88,9 +92,14 @@ export class GitHubService {
           body: pr.body,
           url: pr.html_url,
           mergedAt: pr.merged_at,
+          author: pr.user?.login ?? undefined,
+          labels: pr.labels?.map(l => typeof l === 'string' ? l : l.name ?? '').filter(Boolean),
           commits,
         });
       }
+
+      // Stop pagination if we've hit the limit
+      if (prs.length >= limit) break;
 
       // Check if the oldest PR in this page is before our cutoff
       const oldestInPage = pagePRs[pagePRs.length - 1];
@@ -108,9 +117,10 @@ export class GitHubService {
     );
   }
 
-  async getRecentMergedPRs(
+  async getOlderMergedPRs(
     owner: string,
     name: string,
+    before: Date,
     limit: number = 10
   ): Promise<PRData[]> {
     const prs: PRData[] = [];
@@ -131,6 +141,10 @@ export class GitHubService {
       for (const pr of pagePRs) {
         if (!pr.merged_at) continue;
 
+        const mergedAt = new Date(pr.merged_at);
+        // Skip PRs that are newer than our cutoff
+        if (mergedAt >= before) continue;
+
         const commits = await this.getPRCommits(owner, name, pr.number);
 
         prs.push({
@@ -139,6 +153,8 @@ export class GitHubService {
           body: pr.body,
           url: pr.html_url,
           mergedAt: pr.merged_at,
+          author: pr.user?.login ?? undefined,
+          labels: pr.labels?.map(l => typeof l === 'string' ? l : l.name ?? '').filter(Boolean),
           commits,
         });
 
@@ -180,9 +196,10 @@ export class GitHubService {
   async getReleases(
     owner: string,
     name: string,
-    since: Date
-  ): Promise<Release[]> {
-    const releases: Release[] = [];
+    since: Date,
+    limit: number = 20
+  ): Promise<ReleaseData[]> {
+    const releases: ReleaseData[] = [];
 
     try {
       const { data } = await this.octokit.repos.listReleases({
@@ -192,6 +209,8 @@ export class GitHubService {
       });
 
       for (const release of data) {
+        if (releases.length >= limit) break;
+
         const publishedAt = release.published_at
           ? new Date(release.published_at)
           : null;
@@ -199,13 +218,10 @@ export class GitHubService {
         if (!publishedAt || publishedAt < since) continue;
 
         releases.push({
-          id: `release-${release.id}`,
-          repoId: `${owner}/${name}`,
-          type: 'release',
           title: release.name || release.tag_name,
           tagName: release.tag_name,
           url: release.html_url,
-          date: release.published_at!,
+          publishedAt: release.published_at!,
           body: release.body || '',
         });
       }

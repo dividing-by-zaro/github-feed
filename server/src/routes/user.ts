@@ -59,66 +59,66 @@ router.put('/settings', async (req, res) => {
   }
 });
 
-// Get starred change IDs
+// Get starred update IDs
 router.get('/starred', async (req, res) => {
   try {
     const user = getUser(req);
-    const starred = await prisma.starredChange.findMany({
+    const starred = await prisma.starredUpdate.findMany({
       where: { userId: user.id },
-      select: { changeId: true },
+      select: { updateId: true },
     });
 
-    res.json(starred.map((s) => s.changeId));
+    res.json(starred.map((s: { updateId: string }) => s.updateId));
   } catch (error) {
     console.error('Error fetching starred:', error);
-    res.status(500).json({ error: 'Failed to fetch starred changes' });
+    res.status(500).json({ error: 'Failed to fetch starred updates' });
   }
 });
 
-// Star a change
-router.post('/starred/:changeId', async (req, res) => {
+// Star an update
+router.post('/starred/:updateId', async (req, res) => {
   try {
     const user = getUser(req);
-    const { changeId } = req.params;
+    const { updateId } = req.params;
 
-    await prisma.starredChange.upsert({
+    await prisma.starredUpdate.upsert({
       where: {
-        userId_changeId: {
+        userId_updateId: {
           userId: user.id,
-          changeId,
+          updateId,
         },
       },
       update: {},
       create: {
         userId: user.id,
-        changeId,
+        updateId,
       },
     });
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error starring change:', error);
-    res.status(500).json({ error: 'Failed to star change' });
+    console.error('Error starring update:', error);
+    res.status(500).json({ error: 'Failed to star update' });
   }
 });
 
-// Unstar a change
-router.delete('/starred/:changeId', async (req, res) => {
+// Unstar an update
+router.delete('/starred/:updateId', async (req, res) => {
   try {
     const user = getUser(req);
-    const { changeId } = req.params;
+    const { updateId } = req.params;
 
-    await prisma.starredChange.deleteMany({
+    await prisma.starredUpdate.deleteMany({
       where: {
         userId: user.id,
-        changeId,
+        updateId,
       },
     });
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error unstarring change:', error);
-    res.status(500).json({ error: 'Failed to unstar change' });
+    console.error('Error unstarring update:', error);
+    res.status(500).json({ error: 'Failed to unstar update' });
   }
 });
 

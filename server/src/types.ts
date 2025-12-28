@@ -10,49 +10,60 @@ export type Category =
 
 export type Significance = 'major' | 'minor' | 'patch' | 'internal';
 
+export type ReleaseType = 'stable' | 'nightly' | 'preview' | 'patch';
+
 export interface Commit {
   sha: string;
   message: string;
   url: string;
 }
 
-export interface Change {
+// PR data with drill-down info
+export interface PRInfo {
   id: string;
-  category: Category;
-  significance: Significance;
+  prNumber: number;
   title: string;
-  summary: string;
+  url: string;
+  mergedAt: string;
+  author?: string;
   commits: Commit[];
 }
 
-export interface FeedGroup {
+// Semantic update (LLM-computed) - shown in feed
+export interface Update {
   id: string;
   repoId: string;
-  type: 'pr' | 'daily' | 'release';
   title: string;
-  prNumber?: number;
-  prUrl?: string;
+  summary: string | null;
+  category: Category;
+  significance: Significance;
   date: string;
-  changes: Change[];
+  prCount: number;
+  commitCount: number;
+  prs: PRInfo[];  // For drill-down
 }
 
+// Release with type classification
 export interface Release {
   id: string;
   repoId: string;
-  type: 'release';
   title: string;
   tagName: string;
   url: string;
-  date: string;
+  publishedAt: string;
   body: string;
   summary?: string;
+  releaseType?: ReleaseType;
+  baseVersion?: string;
+  clusterId?: string;
+  isClusterHead?: boolean;
 }
 
 export interface ReleaseData {
   title: string;
   tagName: string;
   url: string;
-  date: string;
+  publishedAt: string;
   body: string;
 }
 
@@ -74,7 +85,7 @@ export interface AnalyzeRequest {
 
 export interface AnalyzeResponse {
   repo: RepoInfo;
-  feedGroups: FeedGroup[];
+  updates: Update[];
   releases: Release[];
 }
 
@@ -84,6 +95,8 @@ export interface PRData {
   body: string | null;
   url: string;
   mergedAt: string;
+  author?: string;
+  labels?: string[];
   commits: CommitData[];
 }
 
@@ -93,9 +106,26 @@ export interface CommitData {
   url: string;
 }
 
-export interface ClassifiedChange {
-  category: Category;
-  significance: Significance;
+// LLM grouping response (Step 1)
+export interface PRGroupingResult {
+  groups: {
+    prNumbers: number[];
+    reason: string;  // Why these PRs are grouped
+  }[];
+}
+
+// LLM summarization response (Step 2)
+export interface GroupSummaryResult {
   title: string;
   summary: string;
+  category: Category;
+  significance: Significance;
+}
+
+// Release cluster for same-day/same-version releases
+export interface ReleaseCluster {
+  clusterId: string;
+  baseVersion: string;
+  releaseType: ReleaseType;
+  releases: ReleaseData[];
 }

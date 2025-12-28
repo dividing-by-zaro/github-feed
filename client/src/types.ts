@@ -10,43 +10,53 @@ export type Category =
 
 export type Significance = 'major' | 'minor' | 'patch' | 'internal';
 
+export type ReleaseType = 'stable' | 'nightly' | 'preview' | 'patch';
+
 export interface Commit {
   sha: string;
   message: string;
   url: string;
 }
 
-export interface Change {
+// Individual PR info for drill-down
+export interface PRInfo {
   id: string;
-  category: Category;
-  significance: Significance;
+  prNumber: number;
   title: string;
-  summary: string;
+  url: string;
+  mergedAt: string;
+  author?: string;
   commits: Commit[];
-  isStarred?: boolean;
 }
 
-export interface FeedGroup {
+// Semantic update - shown in feed
+export interface Update {
   id: string;
   repoId: string;
-  type: 'pr' | 'daily' | 'release';
   title: string;
-  prNumber?: number;
-  prUrl?: string;
+  summary: string | null;
+  category: Category;
+  significance: Significance;
   date: string;
-  changes: Change[];
+  prCount: number;
+  commitCount: number;
+  prs: PRInfo[];
 }
 
+// Release with type classification
 export interface Release {
   id: string;
   repoId: string;
-  type: 'release';
   title: string;
   tagName: string;
   url: string;
-  date: string;
+  publishedAt: string;
   body: string;
   summary?: string;
+  releaseType?: ReleaseType;
+  baseVersion?: string;
+  clusterId?: string;
+  isClusterHead?: boolean | null;
 }
 
 export interface Repo {
@@ -59,10 +69,10 @@ export interface Repo {
   // Custom settings
   displayName?: string | null;
   customColor?: string | null;
-  feedSignificance?: Significance[]; // Which significance levels to show in feeds
-  showReleases?: boolean; // Whether to show releases in feeds
-  lastFetchedAt?: string | null; // When the repo was last checked for updates
-  createdAt?: string; // When the user subscribed to this repo
+  feedSignificance?: Significance[];
+  showReleases?: boolean;
+  lastFetchedAt?: string | null;
+  createdAt?: string;
 }
 
 export interface UserSettings {
@@ -72,9 +82,9 @@ export interface UserSettings {
 
 export interface AppState {
   repos: Repo[];
-  feedGroups: FeedGroup[];
+  updates: Update[];
   releases: Release[];
-  starredChangeIds: string[];
+  starredUpdateIds: string[];
   settings: UserSettings;
 }
 
@@ -112,4 +122,11 @@ export const SIGNIFICANCE_LABELS: Record<Significance, string> = {
   minor: 'Minor',
   patch: 'Patch',
   internal: 'Internal',
+};
+
+export const RELEASE_TYPE_LABELS: Record<ReleaseType, string> = {
+  stable: 'Stable',
+  nightly: 'Nightly',
+  preview: 'Preview',
+  patch: 'Patch',
 };
