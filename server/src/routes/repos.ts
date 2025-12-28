@@ -234,6 +234,7 @@ router.get('/', async (req: Request, res: Response) => {
       displayName: ur.displayName,
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,
+      showReleases: ur.showReleases,
       lastFetchedAt: ur.globalRepo.lastFetchedAt?.toISOString() ?? null,
     }));
 
@@ -399,6 +400,7 @@ router.post('/', async (req: Request, res: Response) => {
       displayName: userRepo.displayName,
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
+      showReleases: userRepo.showReleases,
       lastFetchedAt: userRepo.globalRepo.lastFetchedAt?.toISOString() ?? null,
       feedGroups: userRepo.globalRepo.feedGroups.map((fg) => ({
         ...fg,
@@ -452,6 +454,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       displayName: userRepo.displayName,
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
+      showReleases: userRepo.showReleases,
       lastFetchedAt: userRepo.globalRepo.lastFetchedAt?.toISOString() ?? null,
       feedGroups: userRepo.globalRepo.feedGroups.map((fg) => ({
         ...fg,
@@ -475,7 +478,7 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const user = getUser(req);
     const { id } = req.params;
-    const { displayName, customColor, feedSignificance } = req.body;
+    const { displayName, customColor, feedSignificance, showReleases } = req.body;
 
     const userRepo = await prisma.userRepo.updateMany({
       where: { id, userId: user.id },
@@ -483,6 +486,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         displayName,
         customColor,
         feedSignificance,
+        showReleases,
       },
     });
 
@@ -505,6 +509,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       displayName: updated!.displayName,
       customColor: updated!.customColor,
       feedSignificance: updated!.feedSignificance,
+      showReleases: updated!.showReleases,
     });
   } catch (error) {
     console.error('Error updating repo:', error);
@@ -709,6 +714,7 @@ router.get('/feed/all', async (req: Request, res: Response) => {
       displayName: ur.displayName,
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,
+      showReleases: ur.showReleases,
       lastFetchedAt: ur.globalRepo.lastFetchedAt?.toISOString() ?? null,
     }));
 

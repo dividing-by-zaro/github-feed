@@ -59,7 +59,8 @@ export interface Repo {
   // Custom settings
   displayName?: string | null;
   customColor?: string | null;
-  feedSignificance?: Significance[]; // Which significance levels show in "All Repos" feed
+  feedSignificance?: Significance[]; // Which significance levels to show in feeds
+  showReleases?: boolean; // Whether to show releases in feeds
   lastFetchedAt?: string | null; // When the repo was last checked for updates
 }
 

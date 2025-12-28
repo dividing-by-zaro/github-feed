@@ -25,7 +25,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Release Summaries** | AI-generated bullet points for release notes |
 | **Unified Feed** | All repos in one chronological view |
 | **Dropdown Filters** | Filter by levels and categories via dropdown menus with select/deselect all |
-| **Per-Repo Settings** | Custom colors, names, and feed preferences |
+| **Per-Repo Settings** | Custom colors, names, significance filters, and release visibility per repo |
 | **Starred Changes** | Save important updates for later |
 | **Release Modal** | Click releases to view full rendered markdown notes |
 | **New Badges** | Highlights unseen changes since your last visit |

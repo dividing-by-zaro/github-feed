@@ -108,6 +108,7 @@ export default function App() {
         displayName: result.displayName,
         customColor: result.customColor,
         feedSignificance: result.feedSignificance,
+        showReleases: result.showReleases,
         lastFetchedAt: result.lastFetchedAt,
       };
 
@@ -159,6 +160,7 @@ export default function App() {
         displayName: updatedRepo.displayName,
         customColor: updatedRepo.customColor,
         feedSignificance: updatedRepo.feedSignificance,
+        showReleases: updatedRepo.showReleases,
       });
 
       setRepos((prev) =>
@@ -311,8 +313,6 @@ export default function App() {
       return [];
     }
 
-    // When viewing a specific repo, always show releases (ignore showReleases toggle)
-    // When viewing "All Repos", respect the showReleases toggle
     const selectedRepo = selectedRepoId
       ? repos.find((r) => r.id === selectedRepoId)
       : null;
@@ -320,13 +320,24 @@ export default function App() {
       ? `${selectedRepo.owner}/${selectedRepo.name}`
       : null;
 
+    // When viewing "All Repos", respect the global showReleases toggle
     if (!selectedRepoKey && !showReleases) {
       return [];
     }
 
     let rel = [...releases];
     if (selectedRepoKey) {
+      // Viewing a specific repo: show releases only if repo's showReleases is true
+      if (selectedRepo?.showReleases === false) {
+        return [];
+      }
       rel = rel.filter((r) => r.repoId === selectedRepoKey);
+    } else {
+      // "All Repos" view: filter out releases from repos with showReleases: false
+      rel = rel.filter((r) => {
+        const repo = repos.find((repo) => `${repo.owner}/${repo.name}` === r.repoId);
+        return repo?.showReleases !== false;
+      });
     }
     return rel.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()

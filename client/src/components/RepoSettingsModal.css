@@ -39,17 +39,99 @@
   gap: 8px;
 }
 
+.repo-settings-modal .form-group > small {
+  display: block;
+  margin-bottom: 12px;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   font-size: 14px;
   cursor: pointer;
+  user-select: none;
 }
 
 .checkbox-label input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
   width: 16px;
   height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 2px;
+  background: white;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.checkbox-label input[type="checkbox"]:hover {
+  border-color: #9ca3af;
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+
+.checkbox-label input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-label input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.significance-badge {
+  font-size: 13px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-left: 8px;
+  position: relative;
+  top: -1px;
+}
+
+.significance-badge.major {
+  background: #fee;
+  color: #c00;
+}
+
+.significance-badge.minor {
+  background: #e6f4ea;
+  color: #1e7e34;
+}
+
+.significance-badge.patch {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.significance-badge.internal {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.significance-badge.releases {
+  background: #e0e7ff;
+  color: #4338ca;
 }
 
 .repo-settings-modal .modal-actions {

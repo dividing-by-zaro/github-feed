@@ -82,6 +82,7 @@ model UserRepo {
   displayName      String?
   customColor      String?
   feedSignificance String[] @default(["major", "minor", "patch", "internal"])
+  showReleases     Boolean  @default(true)
 
   userId       String
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)

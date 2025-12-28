@@ -37,6 +37,7 @@ export default function RepoSettingsModal({
   const [feedSignificance, setFeedSignificance] = useState<Significance[]>(
     repo.feedSignificance || ALL_SIGNIFICANCE
   );
+  const [showReleases, setShowReleases] = useState(repo.showReleases ?? true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -46,6 +47,7 @@ export default function RepoSettingsModal({
       displayName: displayName.trim() || undefined,
       customColor,
       feedSignificance,
+      showReleases,
     });
   };
 
@@ -99,8 +101,17 @@ export default function RepoSettingsModal({
           </div>
 
           <div className="form-group">
-            <label>Show in "All Repos" Feed</label>
+            <label>Feed Visibility</label>
+            <small>What to show for this repo in feeds</small>
             <div className="significance-options">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={showReleases}
+                  onChange={() => setShowReleases(!showReleases)}
+                />
+                <span className="significance-badge releases">Releases</span>
+              </label>
               {ALL_SIGNIFICANCE.map((sig) => (
                 <label key={sig} className="checkbox-label">
                   <input
@@ -108,11 +119,10 @@ export default function RepoSettingsModal({
                     checked={feedSignificance.includes(sig)}
                     onChange={() => toggleSignificance(sig)}
                   />
-                  {SIGNIFICANCE_LABELS[sig]}
+                  <span className={`significance-badge ${sig}`}>{SIGNIFICANCE_LABELS[sig]}</span>
                 </label>
               ))}
             </div>
-            <small>Which significance levels to include when viewing all repos</small>
           </div>
 
           <div className="modal-actions">

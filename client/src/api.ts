@@ -104,7 +104,7 @@ export async function addRepo(repoUrl: string, since?: string): Promise<RepoWith
 
 export async function updateRepo(
   id: string,
-  data: { displayName?: string | null; customColor?: string | null; feedSignificance?: Significance[] }
+  data: { displayName?: string | null; customColor?: string | null; feedSignificance?: Significance[]; showReleases?: boolean }
 ): Promise<Repo> {
   return apiFetch(`/api/repos/${id}`, {
     method: 'PUT',

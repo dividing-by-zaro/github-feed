@@ -76,7 +76,7 @@ github-feed/
 
 **User tables**:
 - `User` - Auth info, preferences, lastSeenAt
-- `UserRepo` - User's subscription to a GlobalRepo with custom displayName, customColor, feedSignificance
+- `UserRepo` - User's subscription to a GlobalRepo with custom displayName, customColor, feedSignificance, showReleases
 - `StarredChange` - User's starred items
 
 ## Authentication
