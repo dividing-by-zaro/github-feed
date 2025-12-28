@@ -10,6 +10,7 @@ const globalForPrisma = globalThis as unknown as {
 function getConnectionString() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
+    console.error('Available env vars:', Object.keys(process.env).filter(k => !k.startsWith('npm_')).join(', '));
     throw new Error('DATABASE_URL environment variable is not set. Check your .env file.');
   }
   return connectionString;

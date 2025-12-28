@@ -23,6 +23,9 @@ initializePassport();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy for Railway (needed for secure cookies and correct redirect URIs)
+app.set('trust proxy', 1);
+
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
