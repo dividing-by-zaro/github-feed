@@ -2,20 +2,27 @@ import { useState } from 'react';
 import type { Repo, Significance } from '../types';
 import { ALL_SIGNIFICANCE, SIGNIFICANCE_LABELS } from '../types';
 import { getRepoColor } from '../utils/colors';
-import './RepoSettingsModal.css';
+import { X, Trash2, Check } from 'lucide-react';
 
 const COLOR_OPTIONS = [
-  '#6366f1', // Indigo
-  '#8b5cf6', // Violet
-  '#ec4899', // Pink
-  '#f43f5e', // Rose
-  '#f97316', // Orange
-  '#eab308', // Yellow
-  '#22c55e', // Green
-  '#14b8a6', // Teal
-  '#06b6d4', // Cyan
-  '#3b82f6', // Blue
+  { color: '#6366f1', name: 'Indigo' },
+  { color: '#8b5cf6', name: 'Violet' },
+  { color: '#ec4899', name: 'Pink' },
+  { color: '#f43f5e', name: 'Rose' },
+  { color: '#f97316', name: 'Orange' },
+  { color: '#eab308', name: 'Yellow' },
+  { color: '#22c55e', name: 'Green' },
+  { color: '#14b8a6', name: 'Teal' },
+  { color: '#06b6d4', name: 'Cyan' },
+  { color: '#3b82f6', name: 'Blue' },
 ];
+
+const SIGNIFICANCE_COLORS: Record<string, string> = {
+  major: 'bg-coral',
+  minor: 'bg-mint',
+  patch: 'bg-yellow',
+  internal: 'bg-gray-100',
+};
 
 interface RepoSettingsModalProps {
   repo: Repo;
@@ -67,77 +74,125 @@ export default function RepoSettingsModal({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal repo-settings-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Repo Settings</h2>
-        <p className="repo-settings-subtitle">{repo.owner}/{repo.name}</p>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md bg-white border-3 border-black rounded-2xl shadow-brutal-lg animate-bounce-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b-2 border-black/10">
+          <div>
+            <h2 className="font-display text-xl font-bold">Repo Settings</h2>
+            <p className="text-sm text-gray-500 font-mono">{repo.owner}/{repo.name}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="display-name">Display Name</label>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Display Name */}
+          <div className="space-y-2">
+            <label htmlFor="display-name" className="block font-display font-semibold text-sm">
+              Display Name
+            </label>
             <input
               id="display-name"
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={repo.name}
+              className="brutal-input"
             />
-            <small>Custom name to display in the feed</small>
+            <p className="text-xs text-gray-500">Custom name to display in the feed</p>
           </div>
 
-          <div className="form-group">
-            <label>Color</label>
-            <div className="color-picker">
-              {COLOR_OPTIONS.map((color) => (
+          {/* Color Picker */}
+          <div className="space-y-2">
+            <label className="block font-display font-semibold text-sm">Color</label>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_OPTIONS.map(({ color }) => (
                 <button
                   key={color}
                   type="button"
-                  className={`color-option ${customColor === color ? 'selected' : ''}`}
-                  style={{ backgroundColor: color }}
                   onClick={() => setCustomColor(color)}
+                  className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                    customColor === color
+                      ? 'border-black shadow-brutal-sm scale-110'
+                      : 'border-black/20 hover:border-black/50'
+                  }`}
+                  style={{ backgroundColor: color }}
                 />
               ))}
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Feed Visibility</label>
-            <small>What to show for this repo in feeds</small>
-            <div className="significance-options">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={showReleases}
-                  onChange={() => setShowReleases(!showReleases)}
-                />
-                <span className="significance-badge releases">Releases</span>
+          {/* Feed Visibility */}
+          <div className="space-y-3">
+            <div>
+              <label className="block font-display font-semibold text-sm">Feed Visibility</label>
+              <p className="text-xs text-gray-500">What to show for this repo in feeds</p>
+            </div>
+
+            <div className="space-y-2">
+              {/* Releases toggle */}
+              <label
+                className="flex items-center gap-3 p-3 rounded-lg border-2 border-black/10 hover:border-black/30 cursor-pointer transition-colors"
+                onClick={() => setShowReleases(!showReleases)}
+              >
+                <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${showReleases ? 'bg-lavender' : 'bg-white'}`}>
+                  {showReleases && <Check size={12} strokeWidth={3} />}
+                </div>
+                <span className="px-2 py-0.5 bg-lavender text-xs font-display font-semibold rounded-full border-2 border-black">
+                  Releases
+                </span>
               </label>
+
+              {/* Significance toggles */}
               {ALL_SIGNIFICANCE.map((sig) => (
-                <label key={sig} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={feedSignificance.includes(sig)}
-                    onChange={() => toggleSignificance(sig)}
-                  />
-                  <span className={`significance-badge ${sig}`}>{SIGNIFICANCE_LABELS[sig]}</span>
+                <label
+                  key={sig}
+                  className="flex items-center gap-3 p-3 rounded-lg border-2 border-black/10 hover:border-black/30 cursor-pointer transition-colors"
+                  onClick={() => toggleSignificance(sig)}
+                >
+                  <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${feedSignificance.includes(sig) ? 'bg-mint' : 'bg-white'}`}>
+                    {feedSignificance.includes(sig) && <Check size={12} strokeWidth={3} />}
+                  </div>
+                  <span className={`px-2 py-0.5 text-xs font-display font-semibold rounded-full border-2 border-black ${SIGNIFICANCE_COLORS[sig]}`}>
+                    {SIGNIFICANCE_LABELS[sig]}
+                  </span>
                 </label>
               ))}
             </div>
           </div>
 
-          <div className="modal-actions">
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-4 border-t-2 border-black/10">
             <button
               type="button"
-              className={`delete-btn ${showDeleteConfirm ? 'confirm' : ''}`}
               onClick={handleDelete}
+              className={`brutal-btn ${showDeleteConfirm ? 'bg-coral border-coral' : 'brutal-btn-secondary'} text-black`}
             >
-              {showDeleteConfirm ? 'Click again to confirm' : 'Delete Repo'}
+              <Trash2 size={16} />
+              {showDeleteConfirm ? 'Click to confirm' : 'Delete'}
             </button>
-            <div className="modal-actions-right">
-              <button type="button" onClick={onClose}>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="brutal-btn brutal-btn-secondary"
+              >
                 Cancel
               </button>
-              <button type="submit" className="primary">
+              <button
+                type="submit"
+                className="brutal-btn brutal-btn-primary"
+              >
                 Save
               </button>
             </div>

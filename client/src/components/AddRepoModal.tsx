@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { searchIndexedRepos, type IndexedRepo } from '../api';
+import { X, Search, Zap, Check } from 'lucide-react';
 
 interface AddRepoModalProps {
   onAdd: (repoUrl: string) => void;
@@ -20,10 +21,8 @@ export default function AddRepoModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<number>();
 
-  // Extract search term from URL or plain text
   const getSearchTerm = (input: string): string => {
     const trimmed = input.trim();
-    // If it looks like a GitHub URL, extract owner/repo part
     const urlMatch = trimmed.match(/github\.com\/([^\/]+(?:\/[^\/]*)?)/i);
     if (urlMatch) {
       return urlMatch[1].replace(/[?#].*$/, '');
@@ -31,7 +30,6 @@ export default function AddRepoModal({
     return trimmed;
   };
 
-  // Debounced search
   useEffect(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -46,7 +44,6 @@ export default function AddRepoModal({
       return;
     }
 
-    // Show loading state immediately
     setShowSuggestions(true);
     setIsSearching(true);
 
@@ -80,15 +77,13 @@ export default function AddRepoModal({
   };
 
   const handleSelectSuggestion = (suggestion: IndexedRepo) => {
-    if (suggestion.isFollowed) return; // Can't select already-followed repos
+    if (suggestion.isFollowed) return;
     setUrl(suggestion.url);
     setShowSuggestions(false);
     setSuggestions([]);
-    // Auto-submit since it's a known indexed repo
     onAdd(suggestion.url);
   };
 
-  // Get selectable suggestions (not already followed)
   const selectableSuggestions = suggestions.filter(s => !s.isFollowed);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -120,14 +115,32 @@ export default function AddRepoModal({
   const isValidUrl = url.match(/github\.com\/[^\/]+\/[^\/]+/);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Add Repository</h2>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-lg bg-white border-3 border-black rounded-2xl shadow-brutal-lg animate-bounce-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b-2 border-black/10">
+          <h2 className="font-display text-xl font-bold">Add Repository</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="repo-url">GitHub Repository URL</label>
-            <div className="autocomplete-container">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6">
+          <div className="space-y-2">
+            <label htmlFor="repo-url" className="block font-display font-semibold text-sm">
+              GitHub Repository URL
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300">
+                <Search size={18} />
+              </div>
               <input
                 ref={inputRef}
                 id="repo-url"
@@ -140,72 +153,104 @@ export default function AddRepoModal({
                 disabled={isLoading}
                 autoFocus
                 autoComplete="off"
+                className="brutal-input pl-10"
               />
+
+              {/* Autocomplete Dropdown */}
               {showSuggestions && (
-                <ul className="autocomplete-dropdown">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border-3 border-black rounded-xl shadow-brutal overflow-hidden z-10 max-h-72 overflow-y-auto">
                   {isSearching ? (
-                    <li className="autocomplete-loading">
-                      <span className="autocomplete-spinner" />
-                      Searching indexed repos...
-                    </li>
+                    <div className="flex items-center gap-3 px-4 py-3 text-gray-500">
+                      <div className="w-4 h-4 border-2 border-gray-200 border-t-mint rounded-full animate-spin" />
+                      <span className="text-sm">Searching indexed repos...</span>
+                    </div>
                   ) : suggestions.length > 0 ? (
                     suggestions.map((suggestion) => {
                       const selectableIndex = selectableSuggestions.findIndex(s => s.id === suggestion.id);
                       const isSelected = !suggestion.isFollowed && selectableIndex === selectedIndex;
 
                       return (
-                        <li
+                        <div
                           key={suggestion.id}
-                          className={`autocomplete-item ${isSelected ? 'selected' : ''} ${suggestion.isFollowed ? 'followed' : ''}`}
                           onClick={() => handleSelectSuggestion(suggestion)}
                           onMouseEnter={() => !suggestion.isFollowed && setSelectedIndex(selectableIndex)}
+                          className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-black/5 last:border-b-0 ${
+                            isSelected ? 'bg-yellow/30' : suggestion.isFollowed ? 'opacity-50 cursor-default' : 'hover:bg-cream'
+                          }`}
                         >
                           {suggestion.avatarUrl && (
                             <img
                               src={suggestion.avatarUrl}
                               alt=""
-                              className="autocomplete-avatar"
+                              className="w-8 h-8 rounded-lg border-2 border-black"
                             />
                           )}
-                          <div className="autocomplete-info">
-                            <span className="autocomplete-name">
+                          <div className="flex-1 min-w-0">
+                            <span className="block font-display font-semibold text-sm">
                               {suggestion.owner}/{suggestion.name}
                             </span>
                             {suggestion.description && (
-                              <span className="autocomplete-description">
+                              <span className="block text-xs text-gray-500 truncate">
                                 {suggestion.description.length > 60
                                   ? suggestion.description.slice(0, 60) + '...'
                                   : suggestion.description}
                               </span>
                             )}
                           </div>
-                          <span className={`autocomplete-badge ${suggestion.isFollowed ? 'followed' : ''}`}>
-                            {suggestion.isFollowed ? 'Followed' : 'Instant'}
+                          <span className={`shrink-0 px-2 py-1 text-xs font-display font-semibold rounded-full border-2 border-black ${
+                            suggestion.isFollowed ? 'bg-gray-100 text-gray-500' : 'bg-mint text-black'
+                          }`}>
+                            {suggestion.isFollowed ? (
+                              <span className="flex items-center gap-1">
+                                <Check size={12} />
+                                Followed
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <Zap size={12} />
+                                Instant
+                              </span>
+                            )}
                           </span>
-                        </li>
+                        </div>
                       );
                     })
                   ) : (
-                    <li className="autocomplete-empty">No indexed repos found</li>
+                    <div className="px-4 py-3 text-sm text-gray-500">
+                      No indexed repos found
+                    </div>
                   )}
-                </ul>
+                </div>
               )}
             </div>
-            <small>
+            <p className="text-xs text-gray-500">
               Enter a GitHub URL or search for an already-indexed repository
-            </small>
+            </p>
           </div>
 
-          <div className="modal-actions">
-            <button type="button" onClick={onClose} disabled={isLoading}>
+          {/* Actions */}
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isLoading}
+              className="brutal-btn brutal-btn-secondary"
+            >
               Cancel
             </button>
             <button
               type="submit"
-              className="primary"
               disabled={!isValidUrl || isLoading}
+              className="brutal-btn brutal-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Analyzing...' : 'Add Repo'}
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                'Add Repo'
+              )}
             </button>
           </div>
         </form>

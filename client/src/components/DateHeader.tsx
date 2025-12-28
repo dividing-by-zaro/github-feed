@@ -1,4 +1,4 @@
-import './DateHeader.css';
+import { Calendar } from 'lucide-react';
 
 interface DateHeaderProps {
   date: Date;
@@ -12,17 +12,14 @@ function formatDateHeader(date: Date): string {
   yesterday.setDate(yesterday.getDate() - 1);
   const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-  // Today
   if (targetDate.getTime() === today.getTime()) {
     return 'Today';
   }
 
-  // Yesterday
   if (targetDate.getTime() === yesterday.getTime()) {
     return 'Yesterday';
   }
 
-  // Within last 7 days - show day name
   const daysDiff = Math.floor((today.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
   if (daysDiff <= 7) {
     return date.toLocaleDateString('en-US', {
@@ -32,7 +29,6 @@ function formatDateHeader(date: Date): string {
     });
   }
 
-  // Same year - show month and day
   if (date.getFullYear() === now.getFullYear()) {
     return date.toLocaleDateString('en-US', {
       month: 'long',
@@ -40,7 +36,6 @@ function formatDateHeader(date: Date): string {
     });
   }
 
-  // Different year - show full date
   return date.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -50,15 +45,15 @@ function formatDateHeader(date: Date): string {
 
 export default function DateHeader({ date, updateCount }: DateHeaderProps) {
   return (
-    <div className="date-header">
-      <div className="date-header-line" />
-      <div className="date-header-content">
-        <span className="date-header-text">{formatDateHeader(date)}</span>
-        <span className="date-header-count">
-          {updateCount} update{updateCount !== 1 ? 's' : ''}
-        </span>
+    <div className="sticky top-0 z-10 flex items-center gap-3 py-3 bg-cream">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-white border-2 border-black rounded-full shadow-brutal-sm">
+        <Calendar size={14} />
+        <span className="font-display font-semibold text-sm">{formatDateHeader(date)}</span>
       </div>
-      <div className="date-header-line" />
+      <span className="font-display text-xs text-gray-500 font-medium">
+        {updateCount} update{updateCount !== 1 ? 's' : ''}
+      </span>
+      <div className="flex-1 h-px bg-black/10" />
     </div>
   );
 }

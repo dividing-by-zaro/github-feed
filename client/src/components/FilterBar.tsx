@@ -6,7 +6,7 @@ import {
   CATEGORY_LABELS,
   SIGNIFICANCE_LABELS,
 } from '../types';
-import './FilterBar.css';
+import { ChevronDown, Check } from 'lucide-react';
 
 interface FilterBarProps {
   selectedSignificance: Significance[];
@@ -60,47 +60,56 @@ export default function FilterBar({
   const hasActiveCategory = selectedCategories.length > 0;
 
   return (
-    <div className="filter-bar">
-      <div className="filter-dropdown-container">
+    <div className="flex items-center gap-2">
+      {/* Significance Dropdown */}
+      <div className="relative">
         <button
-          className={`filter-dropdown-btn ${hasActiveSignificance ? 'active' : ''} ${openDropdown === 'significance' ? 'open' : ''}`}
           onClick={() => setOpenDropdown(openDropdown === 'significance' ? null : 'significance')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-full border-2 font-display font-medium text-sm transition-all ${
+            hasActiveSignificance
+              ? 'bg-yellow border-black'
+              : 'bg-white border-black/30 hover:border-black'
+          } ${openDropdown === 'significance' ? 'shadow-brutal-sm' : ''}`}
         >
           <span>{getSignificanceLabel()}</span>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <ChevronDown size={14} className={`transition-transform ${openDropdown === 'significance' ? 'rotate-180' : ''}`} />
         </button>
+
         {openDropdown === 'significance' && (
           <>
-            <div className="filter-dropdown-backdrop" onClick={() => setOpenDropdown(null)} />
-            <div className="filter-dropdown-menu">
-              <label className="filter-dropdown-item">
-                <input
-                  type="checkbox"
-                  checked={showReleases}
-                  onChange={() => onShowReleasesChange(!showReleases)}
-                />
-                <span>Releases</span>
+            <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+            <div className="absolute right-0 mt-2 w-48 bg-white border-3 border-black rounded-lg shadow-brutal z-50 overflow-hidden animate-slide-down">
+              <label className="flex items-center gap-3 px-4 py-3 hover:bg-cream cursor-pointer transition-colors">
+                <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${showReleases ? 'bg-lavender' : 'bg-white'}`}>
+                  {showReleases && <Check size={12} strokeWidth={3} />}
+                </div>
+                <span className="font-display font-medium text-sm">Releases</span>
               </label>
-              <div className="filter-dropdown-divider" />
+
+              <div className="h-px bg-black/10" />
+
               {ALL_SIGNIFICANCE.map((sig) => (
-                <label key={sig} className="filter-dropdown-item">
-                  <input
-                    type="checkbox"
-                    checked={selectedSignificance.includes(sig)}
-                    onChange={() => toggleSignificance(sig)}
-                  />
-                  <span>{SIGNIFICANCE_LABELS[sig]}</span>
+                <label
+                  key={sig}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-cream cursor-pointer transition-colors"
+                  onClick={() => toggleSignificance(sig)}
+                >
+                  <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${selectedSignificance.includes(sig) ? 'bg-mint' : 'bg-white'}`}>
+                    {selectedSignificance.includes(sig) && <Check size={12} strokeWidth={3} />}
+                  </div>
+                  <span className="font-display font-medium text-sm">{SIGNIFICANCE_LABELS[sig]}</span>
                 </label>
               ))}
-              <div className="filter-dropdown-divider" />
-              <div className="filter-dropdown-actions">
+
+              <div className="h-px bg-black/10" />
+
+              <div className="flex gap-2 p-2">
                 <button
                   onClick={() => {
                     onSignificanceChange([...ALL_SIGNIFICANCE]);
                     onShowReleasesChange(true);
                   }}
+                  className="flex-1 px-3 py-1.5 text-xs font-display font-semibold bg-cream hover:bg-cream-dark rounded-md transition-colors"
                 >
                   Select all
                 </button>
@@ -109,8 +118,9 @@ export default function FilterBar({
                     onSignificanceChange([]);
                     onShowReleasesChange(false);
                   }}
+                  className="flex-1 px-3 py-1.5 text-xs font-display font-semibold bg-cream hover:bg-cream-dark rounded-md transition-colors"
                 >
-                  Deselect all
+                  Clear
                 </button>
               </div>
             </div>
@@ -118,37 +128,51 @@ export default function FilterBar({
         )}
       </div>
 
-      <div className="filter-dropdown-container">
+      {/* Category Dropdown */}
+      <div className="relative">
         <button
-          className={`filter-dropdown-btn ${hasActiveCategory ? 'active' : ''} ${openDropdown === 'category' ? 'open' : ''}`}
           onClick={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-full border-2 font-display font-medium text-sm transition-all ${
+            hasActiveCategory
+              ? 'bg-pink border-black'
+              : 'bg-white border-black/30 hover:border-black'
+          } ${openDropdown === 'category' ? 'shadow-brutal-sm' : ''}`}
         >
           <span>{getCategoryLabel()}</span>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <ChevronDown size={14} className={`transition-transform ${openDropdown === 'category' ? 'rotate-180' : ''}`} />
         </button>
+
         {openDropdown === 'category' && (
           <>
-            <div className="filter-dropdown-backdrop" onClick={() => setOpenDropdown(null)} />
-            <div className="filter-dropdown-menu">
+            <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+            <div className="absolute right-0 mt-2 w-48 bg-white border-3 border-black rounded-lg shadow-brutal z-50 overflow-hidden animate-slide-down">
               {ALL_CATEGORIES.map((cat) => (
-                <label key={cat} className="filter-dropdown-item">
-                  <input
-                    type="checkbox"
-                    checked={selectedCategories.includes(cat)}
-                    onChange={() => toggleCategory(cat)}
-                  />
-                  <span>{CATEGORY_LABELS[cat]}</span>
+                <label
+                  key={cat}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-cream cursor-pointer transition-colors"
+                  onClick={() => toggleCategory(cat)}
+                >
+                  <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${selectedCategories.includes(cat) ? 'bg-mint' : 'bg-white'}`}>
+                    {selectedCategories.includes(cat) && <Check size={12} strokeWidth={3} />}
+                  </div>
+                  <span className="font-display font-medium text-sm">{CATEGORY_LABELS[cat]}</span>
                 </label>
               ))}
-              <div className="filter-dropdown-divider" />
-              <div className="filter-dropdown-actions">
-                <button onClick={() => onCategoriesChange([...ALL_CATEGORIES])}>
+
+              <div className="h-px bg-black/10" />
+
+              <div className="flex gap-2 p-2">
+                <button
+                  onClick={() => onCategoriesChange([...ALL_CATEGORIES])}
+                  className="flex-1 px-3 py-1.5 text-xs font-display font-semibold bg-cream hover:bg-cream-dark rounded-md transition-colors"
+                >
                   Select all
                 </button>
-                <button onClick={() => onCategoriesChange([])}>
-                  Deselect all
+                <button
+                  onClick={() => onCategoriesChange([])}
+                  className="flex-1 px-3 py-1.5 text-xs font-display font-semibold bg-cream hover:bg-cream-dark rounded-md transition-colors"
+                >
+                  Clear
                 </button>
               </div>
             </div>

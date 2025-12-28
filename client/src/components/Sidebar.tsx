@@ -1,6 +1,5 @@
-import { Infinity, Star, Rocket } from 'lucide-react';
+import { Infinity, Star, Rocket, Settings } from 'lucide-react';
 import type { Repo } from '../types';
-import './Sidebar.css';
 
 type ViewMode = 'all' | 'starred' | 'releases';
 
@@ -24,70 +23,100 @@ export default function Sidebar({
   const isViewActive = (mode: ViewMode) => viewMode === mode && !selectedRepoId;
 
   return (
-    <aside className="sidebar">
-      <nav className="sidebar-nav">
+    <aside className="w-64 bg-white border-r-3 border-black flex flex-col shrink-0">
+      {/* Navigation */}
+      <nav className="p-4 space-y-2">
         <button
-          className={`sidebar-item ${isViewActive('all') ? 'active' : ''}`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-display font-medium text-sm transition-all ${
+            isViewActive('all')
+              ? 'bg-yellow border-2 border-black shadow-brutal-sm'
+              : 'hover:bg-cream border-2 border-transparent'
+          }`}
           onClick={() => onSelectView('all')}
         >
-          <Infinity size={16} />
+          <Infinity size={18} />
           All Repos
         </button>
         <button
-          className={`sidebar-item ${isViewActive('starred') ? 'active' : ''}`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-display font-medium text-sm transition-all ${
+            isViewActive('starred')
+              ? 'bg-pink border-2 border-black shadow-brutal-sm'
+              : 'hover:bg-cream border-2 border-transparent'
+          }`}
           onClick={() => onSelectView('starred')}
         >
-          <Star size={16} />
+          <Star size={18} />
           Starred
         </button>
         <button
-          className={`sidebar-item ${isViewActive('releases') ? 'active' : ''}`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-display font-medium text-sm transition-all ${
+            isViewActive('releases')
+              ? 'bg-mint border-2 border-black shadow-brutal-sm'
+              : 'hover:bg-cream border-2 border-transparent'
+          }`}
           onClick={() => onSelectView('releases')}
         >
-          <Rocket size={16} />
+          <Rocket size={18} />
           Releases
         </button>
       </nav>
 
-      <div className="sidebar-section">
-        <h3>Repos</h3>
+      {/* Repos Section */}
+      <div className="flex-1 border-t-2 border-black/10 overflow-hidden flex flex-col">
+        <h3 className="px-4 py-3 font-display font-semibold text-xs uppercase tracking-wider text-gray-500">
+          Repos
+        </h3>
+
         {repos.length === 0 ? (
-          <p className="sidebar-empty">No repos yet. Add one to get started.</p>
+          <p className="px-4 py-2 text-sm text-gray-300">
+            No repos yet. Add one to get started.
+          </p>
         ) : (
-          <ul className="repo-list">
+          <ul className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
             {repos.map((repo) => (
               <li
                 key={repo.id}
-                className={`repo-item ${selectedRepoId === repo.id ? 'active' : ''}`}
+                className={`group relative rounded-lg transition-all ${
+                  selectedRepoId === repo.id
+                    ? 'bg-lavender border-2 border-black shadow-brutal-sm'
+                    : 'hover:bg-cream border-2 border-transparent'
+                }`}
               >
                 <button
-                  className="repo-button"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
                   onClick={() => onSelectRepo(repo.id)}
                 >
-                  {repo.avatarUrl && (
+                  {repo.avatarUrl ? (
                     <img
                       src={repo.avatarUrl}
                       alt={`${repo.owner} avatar`}
-                      className="repo-avatar"
+                      className="w-8 h-8 rounded-md border-2 border-black shrink-0"
+                    />
+                  ) : (
+                    <div
+                      className="w-8 h-8 rounded-md border-2 border-black shrink-0"
+                      style={{ backgroundColor: repo.customColor || '#E8D5FF' }}
                     />
                   )}
-                  <div className="repo-info">
-                    <span className="repo-name">{repo.displayName || repo.name}</span>
-                    <span className="repo-owner">{repo.owner}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="block font-display font-semibold text-sm truncate">
+                      {repo.displayName || repo.name}
+                    </span>
+                    <span className="block text-xs text-gray-500 truncate">
+                      {repo.owner}
+                    </span>
                   </div>
                 </button>
+
                 <button
-                  className="repo-settings-btn"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenRepoSettings(repo);
                   }}
                   title="Repo settings"
                 >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
-                    <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/>
-                  </svg>
+                  <Settings size={14} />
                 </button>
               </li>
             ))}

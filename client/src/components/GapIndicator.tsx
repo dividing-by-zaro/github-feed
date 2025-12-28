@@ -1,4 +1,4 @@
-import './GapIndicator.css';
+import { Clock } from 'lucide-react';
 
 interface GapIndicatorProps {
   days: number;
@@ -23,20 +23,21 @@ function formatGap(days: number): string {
   return `${years} year${years !== 1 ? 's' : ''}`;
 }
 
-function getGapTier(days: number): 'minor' | 'moderate' | 'major' {
-  if (days < 7) return 'minor';
-  if (days < 30) return 'moderate';
-  return 'major';
+function getGapStyle(days: number): string {
+  if (days < 7) return 'bg-gray-100 text-gray-500 border-gray-200';
+  if (days < 30) return 'bg-orange/20 text-orange border-orange/30';
+  return 'bg-coral/20 text-coral border-coral/30';
 }
 
 export default function GapIndicator({ days }: GapIndicatorProps) {
-  const tier = getGapTier(days);
-
   return (
-    <div className={`gap-indicator gap-indicator-${tier}`}>
-      <div className="gap-indicator-line" />
-      <span className="gap-indicator-text">{formatGap(days)}</span>
-      <div className="gap-indicator-line" />
+    <div className="flex items-center gap-3 py-2">
+      <div className="flex-1 h-px bg-black/5 border-t border-dashed border-black/10" />
+      <div className={`flex items-center gap-1.5 px-3 py-1 text-xs font-display font-medium rounded-full border ${getGapStyle(days)}`}>
+        <Clock size={12} />
+        {formatGap(days)} gap
+      </div>
+      <div className="flex-1 h-px bg-black/5 border-t border-dashed border-black/10" />
     </div>
   );
 }

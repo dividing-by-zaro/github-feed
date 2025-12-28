@@ -1,27 +1,292 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* Tell Tailwind where to scan for utility classes */
+@source "./**/*.{js,ts,jsx,tsx}";
+
+/* Tailwind v4 Theme Configuration - Use actual values for utility generation */
+@theme inline {
+  /* Neo-Brutalist Color Palette - actual hex values for Tailwind to generate utilities */
+  --color-cream: #FAF9F6;
+  --color-cream-dark: #F0EFE9;
+  --color-yellow: #FDEE4D;
+  --color-yellow-dark: #E6D83E;
+  --color-mint: #00F5B8;
+  --color-mint-dark: #00D9A0;
+  --color-pink: #FFB6F0;
+  --color-pink-dark: #F0A0E0;
+  --color-lavender: #E8D5FF;
+  --color-orange: #FFB347;
+  --color-coral: #FF7F7F;
+  --color-sky: #87CEEB;
+  --color-black: #1A1A1A;
+  --color-gray-900: #2D2D2D;
+  --color-gray-700: #4A4A4A;
+  --color-gray-500: #6B6B6B;
+  --color-gray-300: #A0A0A0;
+  --color-gray-100: #E5E5E5;
+
+  /* Typography */
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* CSS Custom Properties for use in custom component classes */
+:root {
+  --cream: #FAF9F6;
+  --cream-dark: #F0EFE9;
+  --yellow: #FDEE4D;
+  --yellow-dark: #E6D83E;
+  --mint: #00F5B8;
+  --mint-dark: #00D9A0;
+  --pink: #FFB6F0;
+  --pink-dark: #F0A0E0;
+  --lavender: #E8D5FF;
+  --orange: #FFB347;
+  --coral: #FF7F7F;
+  --sky: #87CEEB;
+  --black: #1A1A1A;
+  --gray-900: #2D2D2D;
+  --gray-700: #4A4A4A;
+  --gray-500: #6B6B6B;
+  --gray-300: #A0A0A0;
+  --gray-100: #E5E5E5;
+}
+
+/* Base styles */
 * {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "DM Sans", system-ui, sans-serif;
+  background-color: var(--cream);
+  color: var(--black);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   margin: 0;
   padding: 0;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, sans-serif;
-  background: #f5f5f5;
-  color: #333;
-  line-height: 1.5;
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-button {
+code, pre {
+  font-family: "JetBrains Mono", monospace;
+}
+
+::selection {
+  background-color: var(--yellow);
+  color: var(--black);
+}
+
+/* Component utilities */
+/* Brutal card base */
+.brutal-card {
+  background: white;
+  border: 3px solid var(--black);
+  border-radius: 8px;
+  box-shadow: 4px 4px 0px var(--black);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.brutal-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px var(--black);
+}
+
+/* Brutal button */
+.brutal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 2px solid var(--black);
+  border-radius: 9999px;
   cursor: pointer;
-  font-family: inherit;
+  transition: all 0.15s ease;
 }
 
-a {
-  color: #0066cc;
-  text-decoration: none;
+.brutal-btn-primary {
+  background: var(--black);
+  color: white;
 }
 
-a:hover {
-  text-decoration: underline;
+.brutal-btn-primary:hover {
+  background: var(--gray-700);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0px var(--black);
+}
+
+.brutal-btn-secondary {
+  background: white;
+  color: var(--black);
+}
+
+.brutal-btn-secondary:hover {
+  background: var(--cream);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0px var(--black);
+}
+
+.brutal-btn-yellow {
+  background: var(--yellow);
+  color: var(--black);
+}
+
+.brutal-btn-yellow:hover {
+  background: var(--yellow-dark);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0px var(--black);
+}
+
+.brutal-btn-mint {
+  background: var(--mint);
+  color: var(--black);
+}
+
+.brutal-btn-mint:hover {
+  background: var(--mint-dark);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0px var(--black);
+}
+
+/* Brutal input */
+.brutal-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 1rem;
+  background: white;
+  border: 2px solid var(--black);
+  border-radius: 8px;
+  outline: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.brutal-input:focus {
+  box-shadow: 2px 2px 0px var(--black);
+}
+
+.brutal-input::placeholder {
+  color: var(--gray-300);
+}
+
+/* Custom border widths */
+.border-3 {
+  border-width: 3px;
+}
+
+/* Custom shadows */
+.shadow-brutal-sm {
+  box-shadow: 2px 2px 0px var(--black);
+}
+
+.shadow-brutal {
+  box-shadow: 4px 4px 0px var(--black);
+}
+
+.shadow-brutal-lg {
+  box-shadow: 6px 6px 0px var(--black);
+}
+
+/* Font utilities */
+.font-display {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+.font-body {
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cream-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border: 2px solid var(--cream-dark);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-500);
+}
+
+/* Animation utilities */
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.2s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bounceIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

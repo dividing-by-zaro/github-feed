@@ -4,7 +4,7 @@ import { getRepoColor } from '../utils/colors';
 import FeedGroupComponent from './FeedGroup';
 import DateHeader from './DateHeader';
 import GapIndicator from './GapIndicator';
-import './Feed.css';
+import { RefreshCw, Tag, Sparkles } from 'lucide-react';
 
 interface FeedProps {
   feedGroups: FeedGroup[];
@@ -32,8 +32,9 @@ export default function Feed({
   const [isFetching, setIsFetching] = useState(false);
   const [fetchResult, setFetchResult] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [lastActivityAt, setLastActivityAt] = useState<string | null>(null);
+
   const isNew = (dateStr: string) => {
-    if (!lastSeenAt) return true; // Everything is new if never marked as seen
+    if (!lastSeenAt) return true;
     return new Date(dateStr) > new Date(lastSeenAt);
   };
 
@@ -63,7 +64,7 @@ export default function Feed({
           type: 'info',
         });
       }
-    } catch (err) {
+    } catch {
       setFetchResult({
         message: 'Failed to fetch updates',
         type: 'info',
@@ -88,7 +89,7 @@ export default function Feed({
     ...releases.map((r) => ({ ...r, itemType: 'release' as const })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Group items by date (YYYY-MM-DD)
+  // Group items by date
   type FeedItem = (typeof allItems)[number];
   interface DateGroup {
     dateKey: string;
@@ -115,7 +116,6 @@ export default function Feed({
     }
   }
 
-  // Calculate days between two dates
   const daysBetween = (date1: Date, date2: Date): number => {
     const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
     const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
@@ -124,33 +124,51 @@ export default function Feed({
 
   // Empty state when viewing a specific repo
   if (allItems.length === 0 && selectedRepo) {
-    // After fetching, show the actual GitHub activity date
     if (lastActivityAt) {
       return (
-        <div className="feed-empty">
-          <p>No changes on main since {formatLastFetched(lastActivityAt)}</p>
+        <div className="flex flex-col items-center justify-center py-16 gap-4">
+          <div className="w-16 h-16 bg-lavender rounded-full flex items-center justify-center border-3 border-black">
+            <Sparkles size={28} />
+          </div>
+          <p className="font-display font-semibold text-lg">No changes on main since {formatLastFetched(lastActivityAt)}</p>
           {fetchResult && (
-            <p className={`fetch-result ${fetchResult.type}`}>{fetchResult.message}</p>
+            <p className={`text-sm ${fetchResult.type === 'success' ? 'text-mint-dark' : 'text-gray-500'}`}>
+              {fetchResult.message}
+            </p>
           )}
         </div>
       );
     }
 
-    // Before fetching, prompt to load updates
     return (
-      <div className="feed-empty">
-        <p>No recent changes found.</p>
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <div className="w-16 h-16 bg-yellow rounded-full flex items-center justify-center border-3 border-black">
+          <RefreshCw size={28} />
+        </div>
+        <p className="font-display font-semibold text-lg">No recent changes found</p>
         {onFetchRecent && (
           <>
             <button
-              className="fetch-recent-btn"
               onClick={handleFetchRecent}
               disabled={isFetching}
+              className="brutal-btn brutal-btn-primary"
             >
-              {isFetching ? 'Loading...' : 'Load older updates'}
+              {isFetching ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={16} />
+                  Load older updates
+                </>
+              )}
             </button>
             {fetchResult && (
-              <p className={`fetch-result ${fetchResult.type}`}>{fetchResult.message}</p>
+              <p className={`text-sm ${fetchResult.type === 'success' ? 'text-mint-dark' : 'text-gray-500'}`}>
+                {fetchResult.message}
+              </p>
             )}
           </>
         )}
@@ -161,63 +179,72 @@ export default function Feed({
   // Generic empty state
   if (allItems.length === 0) {
     return (
-      <div className="feed-empty">
-        <p>No changes to show.</p>
-        <p>Add a repo to start tracking changes.</p>
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <div className="w-16 h-16 bg-mint rounded-full flex items-center justify-center border-3 border-black">
+          <Tag size={28} />
+        </div>
+        <p className="font-display font-semibold text-lg">No changes to show</p>
+        <p className="text-gray-500">Add a repo to start tracking changes</p>
       </div>
     );
   }
 
   const getRepo = (repoId: string) => {
-    // repoId is in "owner/name" format, so match against that
     return repos.find((r) => `${r.owner}/${r.name}` === repoId);
   };
 
-  const renderItem = (item: (typeof allItems)[number]) => {
+  const renderItem = (item: FeedItem) => {
     if (item.itemType === 'release') {
       const repo = getRepo(item.repoId);
       const repoName = repo?.displayName || repo?.name || item.repoId;
       const repoColor = repo?.customColor || getRepoColor(item.repoId);
       const itemIsNew = isNew(item.date);
+
       return (
         <div
           key={item.id}
-          className={`release-item clickable ${itemIsNew ? 'is-new' : ''}`}
-          style={{ borderLeftColor: repoColor }}
           onClick={() => onReleaseClick(item, repoName)}
+          className={`group brutal-card p-4 cursor-pointer border-l-4 ${itemIsNew ? 'bg-sky/10' : 'bg-white'}`}
+          style={{ borderLeftColor: repoColor }}
         >
-          <div className="release-header">
-            <div className="release-repo-row">
-              {repo?.avatarUrl ? (
-                <img
-                  src={repo.avatarUrl}
-                  alt={repoName}
-                  className="release-avatar"
-                />
-              ) : (
-                <div
-                  className="release-color-dot"
-                  style={{ backgroundColor: repoColor }}
-                />
-              )}
-              <span className="release-repo" style={{ color: repoColor }}>
-                {repoName}
+          <div className="flex items-center gap-3 mb-3">
+            {repo?.avatarUrl ? (
+              <img
+                src={repo.avatarUrl}
+                alt={repoName}
+                className="w-8 h-8 rounded-md border-2 border-black"
+              />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-md border-2 border-black"
+                style={{ backgroundColor: repoColor }}
+              />
+            )}
+            <span className="font-display font-semibold text-sm" style={{ color: repoColor }}>
+              {repoName}
+            </span>
+            {itemIsNew && (
+              <span className="px-2 py-0.5 bg-sky text-black text-xs font-display font-semibold rounded-full border-2 border-black">
+                New
               </span>
-              {itemIsNew && <span className="new-badge">New</span>}
-            </div>
+            )}
           </div>
-          <div className="release-title-row">
-            <span className="release-badge">Release</span>
-            <h3>{item.title}</h3>
+
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2 py-1 bg-lavender text-black text-xs font-display font-semibold rounded-full border-2 border-black">
+              Release
+            </span>
+            <h3 className="font-display font-bold text-lg">{item.title}</h3>
           </div>
+
           {item.summary ? (
-            <ul className="release-summary">
+            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
               {item.summary.split('\n').filter(line => line.trim()).map((line, i) => (
-                <li key={i}>{line.replace(/^[-•*]\s*/, '')}</li>
+                <li key={i}>{line.replace(/^[-*]\s*/, '')}</li>
               ))}
             </ul>
           ) : item.body && (
-            <p className="release-body">{item.body.slice(0, 200)}...</p>
+            <p className="text-sm text-gray-500 line-clamp-2">{item.body.slice(0, 200)}...</p>
           )}
         </div>
       );
@@ -238,19 +265,16 @@ export default function Feed({
     );
   };
 
-  // Minimum gap threshold in days to show a gap indicator
   const GAP_THRESHOLD = 2;
-
-  // Calculate days from today to the first item
   const today = new Date();
   const todayNormalized = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   return (
-    <div className="feed">
+    <div className="space-y-4">
       {groupedByDate.map((group, groupIndex) => {
         const elements: React.ReactNode[] = [];
 
-        // Add gap indicator before the first group if it's not from today
+        // Gap from today
         if (groupIndex === 0) {
           const firstDate = new Date(group.date.getFullYear(), group.date.getMonth(), group.date.getDate());
           const daysFromToday = Math.floor((todayNormalized.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -261,10 +285,10 @@ export default function Feed({
           }
         }
 
-        // Add gap indicator if there's a significant gap from the previous group
+        // Gap from previous group
         if (groupIndex > 0) {
           const prevGroup = groupedByDate[groupIndex - 1];
-          const gap = daysBetween(prevGroup.date, group.date) - 1; // -1 because consecutive days have 1 day diff
+          const gap = daysBetween(prevGroup.date, group.date) - 1;
           if (gap >= GAP_THRESHOLD) {
             elements.push(
               <GapIndicator key={`gap-${group.dateKey}`} days={gap} />
@@ -272,7 +296,7 @@ export default function Feed({
           }
         }
 
-        // Add date header
+        // Date header
         elements.push(
           <DateHeader
             key={`header-${group.dateKey}`}
@@ -281,9 +305,9 @@ export default function Feed({
           />
         );
 
-        // Add items for this date
+        // Items
         elements.push(
-          <div key={`items-${group.dateKey}`} className="date-group-items">
+          <div key={`items-${group.dateKey}`} className="space-y-3">
             {group.items.map(renderItem)}
           </div>
         );
@@ -292,16 +316,28 @@ export default function Feed({
       })}
 
       {selectedRepo && onFetchRecent && (
-        <div className="load-older-section">
+        <div className="flex flex-col items-center gap-3 py-8 border-t-2 border-dashed border-gray-100">
           <button
-            className="load-older-btn"
             onClick={handleFetchRecent}
             disabled={isFetching}
+            className="brutal-btn brutal-btn-secondary"
           >
-            {isFetching ? 'Loading...' : 'Load older updates'}
+            {isFetching ? (
+              <>
+                <RefreshCw size={16} className="animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <RefreshCw size={16} />
+                Load older updates
+              </>
+            )}
           </button>
           {fetchResult && (
-            <p className={`fetch-result ${fetchResult.type}`}>{fetchResult.message}</p>
+            <p className={`text-sm ${fetchResult.type === 'success' ? 'text-mint-dark' : 'text-gray-500'}`}>
+              {fetchResult.message}
+            </p>
           )}
         </div>
       )}

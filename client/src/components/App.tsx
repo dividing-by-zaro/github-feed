@@ -26,7 +26,7 @@ import AddRepoModal from './AddRepoModal';
 import RepoSettingsModal from './RepoSettingsModal';
 import ReleaseModal from './ReleaseModal';
 import LoginPage from './LoginPage';
-import './App.css';
+import { Plus, ChevronDown, LogOut, CheckCheck } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout, refetchUser } = useAuth();
@@ -54,7 +54,6 @@ export default function App() {
   );
   const [showReleases, setShowReleases] = useState(true);
 
-  // Load initial data when user is authenticated
   const loadData = useCallback(async () => {
     if (!user) return;
 
@@ -80,7 +79,6 @@ export default function App() {
     loadData();
   }, [loadData]);
 
-  // Update filters when user settings change
   useEffect(() => {
     if (user?.visibleSignificance) {
       setFilterSignificance(user.visibleSignificance as Significance[]);
@@ -97,7 +95,6 @@ export default function App() {
     try {
       const result = await addRepo(repoUrl);
 
-      // Add new data to state
       const newRepo: Repo = {
         id: result.id,
         owner: result.owner,
@@ -137,7 +134,6 @@ export default function App() {
 
   const handleRemoveRepo = async (repoId: string) => {
     try {
-      // Find the repo to get its database ID
       const repo = repos.find((r) => r.id === repoId);
       if (!repo) return;
 
@@ -175,7 +171,6 @@ export default function App() {
   const handleToggleStar = async (changeId: string) => {
     const isStarred = starredIds.includes(changeId);
 
-    // Optimistic update
     setStarredIds((prev) =>
       isStarred ? prev.filter((id) => id !== changeId) : [...prev, changeId]
     );
@@ -187,7 +182,6 @@ export default function App() {
         await starChange(changeId);
       }
     } catch (err) {
-      // Revert on error
       setStarredIds((prev) =>
         isStarred ? [...prev, changeId] : prev.filter((id) => id !== changeId)
       );
@@ -198,7 +192,7 @@ export default function App() {
   const handleMarkAsSeen = async () => {
     try {
       await markAsSeen();
-      await refetchUser(); // Refresh user to get updated lastSeenAt
+      await refetchUser();
     } catch (err) {
       console.error('Failed to mark as seen:', err);
     }
@@ -209,7 +203,6 @@ export default function App() {
 
     const result = await fetchRecentUpdates(selectedRepoId);
 
-    // Add new feed groups to state
     if (result.newFeedGroups.length > 0) {
       setFeedGroups((prev) => [...prev, ...result.newFeedGroups]);
     }
@@ -221,7 +214,6 @@ export default function App() {
     };
   }, [selectedRepoId]);
 
-  // Check if there are any new items
   const hasNewItems = useMemo(() => {
     if (!user?.lastSeenAt) return feedGroups.length > 0 || releases.length > 0;
     const lastSeen = new Date(user.lastSeenAt);
@@ -231,7 +223,6 @@ export default function App() {
     );
   }, [feedGroups, releases, user?.lastSeenAt]);
 
-  // Filter and sort feed items
   const filteredFeed = useMemo(() => {
     if (viewMode === 'releases') {
       return [];
@@ -239,7 +230,6 @@ export default function App() {
 
     let groups = [...feedGroups];
 
-    // Find the selected repo to get its "owner/name" format
     const selectedRepo = selectedRepoId
       ? repos.find((r) => r.id === selectedRepoId)
       : null;
@@ -255,8 +245,6 @@ export default function App() {
       .map((group) => {
         const repo = repos.find((r) => `${r.owner}/${r.name}` === group.repoId);
 
-        // When viewing a specific repo, only apply that repo's feedSignificance (no UI filters)
-        // When viewing "All Repos", apply intersection of repo's feedSignificance AND UI filter
         if (selectedRepoKey) {
           const repoSignificance = repo?.feedSignificance ?? ['major', 'minor', 'patch', 'internal'];
           return {
@@ -267,7 +255,6 @@ export default function App() {
           };
         }
 
-        // "All Repos" view: apply both repo's feedSignificance AND UI filters
         const repoSignificance = repo?.feedSignificance ?? filterSignificance;
         const effectiveSignificance = filterSignificance.filter((s) =>
           repoSignificance.includes(s)
@@ -320,20 +307,17 @@ export default function App() {
       ? `${selectedRepo.owner}/${selectedRepo.name}`
       : null;
 
-    // When viewing "All Repos", respect the global showReleases toggle
     if (!selectedRepoKey && !showReleases) {
       return [];
     }
 
     let rel = [...releases];
     if (selectedRepoKey) {
-      // Viewing a specific repo: show releases only if repo's showReleases is true
       if (selectedRepo?.showReleases === false) {
         return [];
       }
       rel = rel.filter((r) => r.repoId === selectedRepoKey);
     } else {
-      // "All Repos" view: filter out releases from repos with showReleases: false
       rel = rel.filter((r) => {
         const repo = repos.find((repo) => `${repo.owner}/${repo.name}` === r.repoId);
         return repo?.showReleases !== false;
@@ -344,49 +328,80 @@ export default function App() {
     );
   }, [releases, repos, selectedRepoId, viewMode, showReleases]);
 
-  // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="app">
-        <div className="loading">
-          <div className="loading-spinner" />
-          <div className="loading-text">Loading...</div>
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-gray-100 border-t-mint rounded-full animate-spin" />
+          <p className="font-medium text-gray-500">Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Show login page if not authenticated
   if (!user) {
     return <LoginPage />;
   }
 
   return (
-    <div className="app">
-      <header className="header">
-        <h1>GitHub Curator</h1>
-        <div className="header-actions">
+    <div className="min-h-screen bg-cream flex flex-col">
+      {/* Header */}
+      <header className="bg-white border-b-3 border-black px-6 py-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">GitHub Curator</h1>
+
+        <div className="flex items-center gap-3">
           {hasNewItems && (
-            <button onClick={handleMarkAsSeen} className="mark-read-btn">
-              Mark all as read
+            <button
+              onClick={handleMarkAsSeen}
+              className="brutal-btn brutal-btn-mint"
+            >
+              <CheckCheck size={16} />
+              Mark all read
             </button>
           )}
-          <button onClick={() => setShowAddModal(true)}>Add Repo</button>
-          <div className="user-menu-container">
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="brutal-btn brutal-btn-yellow"
+          >
+            <Plus size={16} />
+            Add Repo
+          </button>
+
+          {/* User Menu */}
+          <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="user-menu-btn"
+              className="flex items-center gap-2 px-3 py-2 rounded-full border-2 border-black bg-white hover:bg-cream-dark transition-colors"
             >
               {user.avatarUrl && (
-                <img src={user.avatarUrl} alt="" className="user-avatar" />
+                <img
+                  src={user.avatarUrl}
+                  alt=""
+                  className="w-7 h-7 rounded-full border-2 border-black"
+                />
               )}
-              <span className="user-name">{user.name?.split(' ')[0] || 'User'}</span>
+              <span className="font-semibold text-sm">
+                {user.name?.split(' ')[0] || 'User'}
+              </span>
+              <ChevronDown size={14} />
             </button>
+
             {showUserMenu && (
               <>
-                <div className="user-menu-backdrop" onClick={() => setShowUserMenu(false)} />
-                <div className="user-menu-dropdown">
-                  <button onClick={() => { logout(); setShowUserMenu(false); }}>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowUserMenu(false)}
+                />
+                <div className="absolute right-0 mt-2 w-40 bg-white border-3 border-black rounded-lg shadow-brutal z-50 overflow-hidden animate-slide-down">
+                  <button
+                    onClick={() => {
+                      logout();
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full px-4 py-3 text-left font-medium text-sm hover:bg-coral/20 flex items-center gap-2 transition-colors"
+                  >
+                    <LogOut size={16} />
                     Logout
                   </button>
                 </div>
@@ -396,7 +411,8 @@ export default function App() {
         </div>
       </header>
 
-      <div className="main-layout">
+      {/* Main Layout */}
+      <div className="flex flex-1">
         <Sidebar
           repos={repos}
           selectedRepoId={selectedRepoId}
@@ -412,16 +428,22 @@ export default function App() {
           onOpenRepoSettings={setRepoSettingsTarget}
         />
 
-        <main className="content">
+        <main className="flex-1 p-6 max-w-4xl">
           {error && (
-            <div className="error-banner">
-              {error}
-              <button onClick={() => setError(null)}>×</button>
+            <div className="mb-4 p-4 bg-coral/20 border-3 border-black rounded-lg flex items-center justify-between animate-bounce-in">
+              <span className="font-medium text-black">{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors text-xl font-bold"
+              >
+                &times;
+              </button>
             </div>
           )}
 
-          <div className="page-header">
-            <h1 className="page-title">
+          {/* Page Header */}
+          <div className="flex items-center justify-between mb-6 gap-4">
+            <h1 className="text-3xl font-bold">
               {selectedRepoId
                 ? repos.find((r) => r.id === selectedRepoId)?.displayName ||
                   repos.find((r) => r.id === selectedRepoId)?.name ||
@@ -446,13 +468,13 @@ export default function App() {
           </div>
 
           {isLoading || dataLoading ? (
-            <div className="loading">
-              <div className="loading-spinner" />
-              <div className="loading-text">
+            <div className="flex flex-col items-center justify-center py-16 gap-4">
+              <div className="w-12 h-12 border-4 border-gray-100 border-t-yellow rounded-full animate-spin" />
+              <p className="font-medium text-gray-500">
                 {isLoading ? 'Analyzing repository...' : 'Loading feed...'}
-              </div>
+              </p>
               {isLoading && (
-                <div className="loading-subtext">Fetching PRs and classifying changes</div>
+                <p className="text-sm text-gray-300">Fetching PRs and classifying changes</p>
               )}
             </div>
           ) : (
@@ -471,6 +493,7 @@ export default function App() {
         </main>
       </div>
 
+      {/* Modals */}
       {showAddModal && (
         <AddRepoModal
           onAdd={handleAddRepo}

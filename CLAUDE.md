@@ -10,7 +10,7 @@ A web app that monitors GitHub repositories and uses LLM to classify/summarize c
 - **Backend**: Node.js + Express + TypeScript (`/server`)
 - **GitHub API**: Octokit
 - **LLM**: OpenAI API (gpt-4o-mini)
-- **Styling**: Plain CSS
+- **Styling**: Tailwind CSS v4 (neo-brutalist design)
 - **Icons**: lucide-react
 - **Database**: PostgreSQL (Railway) + Prisma 7
 - **Auth**: Google OAuth via Passport.js
@@ -66,6 +66,7 @@ github-feed/
 - **Timeline view with date grouping**: Feed items grouped by date with sticky DateHeader components and GapIndicator showing time gaps between updates
 - **Page header with filters**: Title shows current view (All Repos/Starred/Releases/repo name) with dropdown filters inline
 - **Dropdown filters**: FilterBar uses dropdown menus with checkboxes for multi-select (levels & categories)
+- **Tailwind CSS v4**: Uses `@theme inline` for custom color tokens (cream, yellow, mint, pink, lavender, coral, etc.) and `@source` directive for template scanning. Custom component classes (brutal-card, brutal-btn variants) defined in index.css
 
 ## Database Schema
 

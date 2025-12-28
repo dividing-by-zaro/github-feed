@@ -37,6 +37,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Load Older Updates** | Fetch last 10 PRs for repos with no recent changes |
 | **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
 | **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |
+| **Neo-Brutalist Design** | Bold colors, thick borders, offset shadows via Tailwind CSS v4 |
 
 ## Quick Start
 
@@ -71,7 +72,7 @@ Add these API keys to your server `.env` file:
 
 ## Tech Stack
 
-- **Frontend:** React + Vite + TypeScript
+- **Frontend:** React + Vite + TypeScript + Tailwind CSS v4
 - **Backend:** Node.js + Express + TypeScript
 - **Database:** PostgreSQL (Railway) + Prisma 7
 - **Auth:** Google OAuth via Passport.js
@@ -93,6 +94,7 @@ Add these API keys to your server `.env` file:
 - [ ] User repo semantic queries with questions like "When was support for guardrails added"?
 - [ ] Stripe integration for paid plans
 - [ ] When a user removes a repo from the sidebar, all FeedGroups should be automatically removed from their "all" feed as well
+- [ ] Per-repo "refresh" button to regenerate summaries if users suspect an issue (with a gentle reminder that this costs us money)
 
 ## License
 
