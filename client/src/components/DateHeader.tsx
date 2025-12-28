@@ -45,7 +45,7 @@ function formatDateHeader(date: Date): string {
 
 export default function DateHeader({ date, updateCount }: DateHeaderProps) {
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-3 py-3 bg-cream">
+    <div className="sticky top-0 z-10 flex items-center gap-3 py-3 bg-cream -mx-4 px-4">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-white border-2 border-black rounded-full shadow-brutal-sm">
         <Calendar size={14} />
         <span className="font-display font-semibold text-sm">{formatDateHeader(date)}</span>

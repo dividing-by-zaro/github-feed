@@ -6,21 +6,21 @@ interface GapIndicatorProps {
 
 function formatGap(days: number): string {
   if (days < 7) {
-    return `${days} day${days !== 1 ? 's' : ''}`;
+    return `${days} day`;
   }
 
   const weeks = Math.floor(days / 7);
   if (days < 30) {
-    return `${weeks} week${weeks !== 1 ? 's' : ''}`;
+    return `${weeks} week`;
   }
 
   const months = Math.floor(days / 30);
   if (months < 12) {
-    return `${months} month${months !== 1 ? 's' : ''}`;
+    return `${months} month`;
   }
 
   const years = Math.floor(days / 365);
-  return `${years} year${years !== 1 ? 's' : ''}`;
+  return `${years} year`;
 }
 
 function getGapStyle(days: number): string {

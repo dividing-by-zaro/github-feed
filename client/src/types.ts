@@ -106,17 +106,6 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   docs: 'Docs',
 };
 
-export const CATEGORY_ICONS: Record<Category, string> = {
-  feature: '🚀',
-  enhancement: '✨',
-  bugfix: '🐛',
-  breaking: '💥',
-  deprecation: '⚠️',
-  performance: '⚡',
-  security: '🔒',
-  docs: '📝',
-};
-
 export const SIGNIFICANCE_LABELS: Record<Significance, string> = {
   major: 'Major',
   minor: 'Minor',

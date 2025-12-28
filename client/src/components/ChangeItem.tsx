@@ -1,7 +1,31 @@
 import { useState } from 'react';
-import type { Change } from '../types';
-import { CATEGORY_ICONS, CATEGORY_LABELS, SIGNIFICANCE_LABELS } from '../types';
-import { Star, ChevronRight, ChevronDown, ExternalLink } from 'lucide-react';
+import type { Change, Category } from '../types';
+import { CATEGORY_LABELS, SIGNIFICANCE_LABELS } from '../types';
+import {
+  Star,
+  ChevronRight,
+  ChevronDown,
+  ExternalLink,
+  Rocket,
+  Sparkles,
+  Bug,
+  Zap,
+  Archive,
+  Gauge,
+  Shield,
+  FileText,
+} from 'lucide-react';
+
+const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
+  feature: <Rocket size={14} strokeWidth={2.5} />,
+  enhancement: <Sparkles size={14} strokeWidth={2.5} />,
+  bugfix: <Bug size={14} strokeWidth={2.5} />,
+  breaking: <Zap size={14} strokeWidth={2.5} />,
+  deprecation: <Archive size={14} strokeWidth={2.5} />,
+  performance: <Gauge size={14} strokeWidth={2.5} />,
+  security: <Shield size={14} strokeWidth={2.5} />,
+  docs: <FileText size={14} strokeWidth={2.5} />,
+};
 
 interface ChangeItemProps {
   change: Change;

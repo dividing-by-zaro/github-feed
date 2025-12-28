@@ -204,8 +204,8 @@ export default function Feed({
         <div
           key={item.id}
           onClick={() => onReleaseClick(item, repoName)}
-          className={`group brutal-card p-4 cursor-pointer border-l-4 ${itemIsNew ? 'bg-sky/10' : 'bg-white'}`}
-          style={{ borderLeftColor: repoColor }}
+          className={`group brutal-card p-4 cursor-pointer border-l-4 border-t-4 ${itemIsNew ? 'bg-sky/10' : 'bg-white'}`}
+          style={{ borderLeftColor: repoColor, borderTopColor: repoColor }}
         >
           <div className="flex items-center gap-3 mb-3">
             {repo?.avatarUrl ? (

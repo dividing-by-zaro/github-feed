@@ -26,8 +26,8 @@ export default function FeedGroupComponent({
 
   return (
     <div
-      className={`brutal-card overflow-hidden border-l-4 ${isNew ? 'bg-sky/5' : 'bg-white'}`}
-      style={{ borderLeftColor: repoColor }}
+      className={`brutal-card overflow-hidden border-l-4 border-t-4 ${isNew ? 'bg-sky/5' : 'bg-white'}`}
+      style={{ borderLeftColor: repoColor, borderTopColor: repoColor }}
     >
       {/* Header */}
       <div className="p-4 border-b-2 border-black/10">
