@@ -26,7 +26,8 @@ import AddRepoModal from './AddRepoModal';
 import RepoSettingsModal from './RepoSettingsModal';
 import ReleaseModal from './ReleaseModal';
 import LoginPage from './LoginPage';
-import { Plus, ChevronDown, LogOut, CheckCheck } from 'lucide-react';
+import MyReposPage from './MyReposPage';
+import { Plus, ChevronDown, LogOut, CheckCheck, FolderGit2 } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout, refetchUser } = useAuth();
@@ -38,7 +39,7 @@ export default function App() {
   const [dataLoading, setDataLoading] = useState(true);
 
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'all' | 'starred' | 'releases'>('all');
+  const [viewMode, setViewMode] = useState<'all' | 'starred' | 'releases' | 'my-repos'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [repoSettingsTarget, setRepoSettingsTarget] = useState<Repo | null>(null);
   const [selectedRelease, setSelectedRelease] = useState<{ release: Release; repoName: string } | null>(null);
@@ -396,6 +397,17 @@ export default function App() {
                 <div className="absolute right-0 mt-2 w-40 bg-white border-3 border-black rounded-lg shadow-brutal z-50 overflow-hidden animate-slide-down">
                   <button
                     onClick={() => {
+                      setViewMode('my-repos');
+                      setSelectedRepoId(null);
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full px-4 py-3 text-left font-medium text-sm hover:bg-mint/20 flex items-center gap-2 transition-colors border-b border-black/10"
+                  >
+                    <FolderGit2 size={16} />
+                    Manage Repos
+                  </button>
+                  <button
+                    onClick={() => {
                       logout();
                       setShowUserMenu(false);
                     }}
@@ -441,54 +453,64 @@ export default function App() {
             </div>
           )}
 
-          {/* Page Header */}
-          <div className="flex items-center justify-between mb-6 gap-4">
-            <h1 className="text-3xl font-bold">
-              {selectedRepoId
-                ? repos.find((r) => r.id === selectedRepoId)?.displayName ||
-                  repos.find((r) => r.id === selectedRepoId)?.name ||
-                  'Repository'
-                : viewMode === 'starred'
-                  ? 'Starred'
-                  : viewMode === 'releases'
-                    ? 'Releases'
-                    : 'All Repos'}
-            </h1>
-
-            {!selectedRepoId && viewMode !== 'releases' && (
-              <FilterBar
-                selectedSignificance={filterSignificance}
-                selectedCategories={filterCategories}
-                showReleases={showReleases}
-                onSignificanceChange={setFilterSignificance}
-                onCategoriesChange={setFilterCategories}
-                onShowReleasesChange={setShowReleases}
-              />
-            )}
-          </div>
-
-          {isLoading || dataLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-4">
-              <div className="w-12 h-12 border-4 border-gray-100 border-t-yellow rounded-full animate-spin" />
-              <p className="font-medium text-gray-500">
-                {isLoading ? 'Analyzing repository...' : 'Loading feed...'}
-              </p>
-              {isLoading && (
-                <p className="text-sm text-gray-300">Fetching PRs and classifying changes</p>
-              )}
-            </div>
-          ) : (
-            <Feed
-              feedGroups={filteredFeed}
-              releases={filteredReleases}
-              starredIds={starredIds}
-              onToggleStar={handleToggleStar}
-              onReleaseClick={(release, repoName) => setSelectedRelease({ release, repoName })}
+          {viewMode === 'my-repos' ? (
+            <MyReposPage
               repos={repos}
-              lastSeenAt={user.lastSeenAt}
-              selectedRepo={selectedRepoId ? repos.find((r) => r.id === selectedRepoId) : null}
-              onFetchRecent={selectedRepoId ? handleFetchRecent : undefined}
+              onOpenSettings={setRepoSettingsTarget}
+              onDelete={handleRemoveRepo}
             />
+          ) : (
+            <>
+              {/* Page Header */}
+              <div className="flex items-center justify-between mb-6 gap-4">
+                <h1 className="text-3xl font-bold">
+                  {selectedRepoId
+                    ? repos.find((r) => r.id === selectedRepoId)?.displayName ||
+                      repos.find((r) => r.id === selectedRepoId)?.name ||
+                      'Repository'
+                    : viewMode === 'starred'
+                      ? 'Starred'
+                      : viewMode === 'releases'
+                        ? 'Releases'
+                        : 'All Repos'}
+                </h1>
+
+                {!selectedRepoId && viewMode !== 'releases' && (
+                  <FilterBar
+                    selectedSignificance={filterSignificance}
+                    selectedCategories={filterCategories}
+                    showReleases={showReleases}
+                    onSignificanceChange={setFilterSignificance}
+                    onCategoriesChange={setFilterCategories}
+                    onShowReleasesChange={setShowReleases}
+                  />
+                )}
+              </div>
+
+              {isLoading || dataLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <div className="w-12 h-12 border-4 border-gray-100 border-t-yellow rounded-full animate-spin" />
+                  <p className="font-medium text-gray-500">
+                    {isLoading ? 'Analyzing repository...' : 'Loading feed...'}
+                  </p>
+                  {isLoading && (
+                    <p className="text-sm text-gray-300">Fetching PRs and classifying changes</p>
+                  )}
+                </div>
+              ) : (
+                <Feed
+                  feedGroups={filteredFeed}
+                  releases={filteredReleases}
+                  starredIds={starredIds}
+                  onToggleStar={handleToggleStar}
+                  onReleaseClick={(release, repoName) => setSelectedRelease({ release, repoName })}
+                  repos={repos}
+                  lastSeenAt={user.lastSeenAt}
+                  selectedRepo={selectedRepoId ? repos.find((r) => r.id === selectedRepoId) : null}
+                  onFetchRecent={selectedRepoId ? handleFetchRecent : undefined}
+                />
+              )}
+            </>
           )}
         </main>
       </div>

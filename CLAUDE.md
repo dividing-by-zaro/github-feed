@@ -66,6 +66,7 @@ github-feed/
 - **Timeline view with date grouping**: Feed items grouped by date with sticky DateHeader components and GapIndicator showing time gaps between updates
 - **Page header with filters**: Title shows current view (All Repos/Starred/Releases/repo name) with dropdown filters inline
 - **Dropdown filters**: FilterBar uses dropdown menus with checkboxes for multi-select (levels & categories)
+- **Manage Repos page**: Accessible from user menu dropdown, shows all subscribed repos with sorting (date added, alphabetical), inline delete confirmation, and click-to-open settings modal. Component: `MyReposPage.tsx`, view mode: `'my-repos'`
 - **Tailwind CSS v4**: Uses `@theme inline` for custom color tokens (cream, yellow, mint, pink, lavender, coral, etc.) and `@source` directive for template scanning. Custom component classes (brutal-card, brutal-btn variants) defined in index.css
 
 ## Database Schema
@@ -77,7 +78,7 @@ github-feed/
 
 **User tables**:
 - `User` - Auth info, preferences, lastSeenAt
-- `UserRepo` - User's subscription to a GlobalRepo with custom displayName, customColor, feedSignificance, showReleases
+- `UserRepo` - User's subscription to a GlobalRepo with custom displayName, customColor, feedSignificance, showReleases, createdAt (subscription date)
 - `StarredChange` - User's starred items
 
 ## Authentication

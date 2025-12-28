@@ -1,7 +1,7 @@
 import { Infinity, Star, Rocket, Settings } from 'lucide-react';
 import type { Repo } from '../types';
 
-type ViewMode = 'all' | 'starred' | 'releases';
+type ViewMode = 'all' | 'starred' | 'releases' | 'my-repos';
 
 interface SidebarProps {
   repos: Repo[];

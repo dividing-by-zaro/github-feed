@@ -31,7 +31,8 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **New Badges** | Highlights unseen changes since your last visit |
 | **Timeline View** | Date-grouped feed with sticky headers and gap indicators showing time between updates |
 | **Page Title** | Dynamic title showing current view with inline filters |
-| **User Menu** | Profile picture and name with dropdown logout |
+| **User Menu** | Profile picture and name with dropdown for Manage Repos and logout |
+| **Manage Repos** | View all subscribed repos, sort by date or name, delete with confirmation |
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
 | **Load Older Updates** | Fetch last 10 PRs for repos with no recent changes |

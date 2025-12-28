@@ -76,11 +76,11 @@ export default function RepoSettingsModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md bg-white border-3 border-black rounded-2xl shadow-brutal-lg animate-bounce-in"
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-3 border-black rounded-2xl shadow-brutal-lg animate-bounce-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b-2 border-black/10">
+        <div className="flex items-center justify-between p-6 border-b-2 border-black/10 sticky top-0 bg-white z-10">
           <div>
             <h2 className="font-display text-xl font-bold">Repo Settings</h2>
             <p className="text-sm text-gray-500 font-mono">{repo.owner}/{repo.name}</p>
@@ -138,13 +138,13 @@ export default function RepoSettingsModal({
               <p className="text-xs text-gray-500">What to show for this repo in feeds</p>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
               {/* Releases toggle */}
               <label
-                className="flex items-center gap-3 p-3 rounded-lg border-2 border-black/10 hover:border-black/30 cursor-pointer transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-black/10 hover:border-black/30 cursor-pointer transition-colors"
                 onClick={() => setShowReleases(!showReleases)}
               >
-                <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${showReleases ? 'bg-lavender' : 'bg-white'}`}>
+                <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${showReleases ? 'bg-black text-white' : 'bg-white'}`}>
                   {showReleases && <Check size={12} strokeWidth={3} />}
                 </div>
                 <span className="px-2 py-0.5 bg-lavender text-xs font-display font-semibold rounded-full border-2 border-black">
@@ -156,10 +156,10 @@ export default function RepoSettingsModal({
               {ALL_SIGNIFICANCE.map((sig) => (
                 <label
                   key={sig}
-                  className="flex items-center gap-3 p-3 rounded-lg border-2 border-black/10 hover:border-black/30 cursor-pointer transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-black/10 hover:border-black/30 cursor-pointer transition-colors"
                   onClick={() => toggleSignificance(sig)}
                 >
-                  <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${feedSignificance.includes(sig) ? 'bg-mint' : 'bg-white'}`}>
+                  <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${feedSignificance.includes(sig) ? 'bg-black text-white' : 'bg-white'}`}>
                     {feedSignificance.includes(sig) && <Check size={12} strokeWidth={3} />}
                   </div>
                   <span className={`px-2 py-0.5 text-xs font-display font-semibold rounded-full border-2 border-black ${SIGNIFICANCE_COLORS[sig]}`}>

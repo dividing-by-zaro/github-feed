@@ -62,6 +62,7 @@ export interface Repo {
   feedSignificance?: Significance[]; // Which significance levels to show in feeds
   showReleases?: boolean; // Whether to show releases in feeds
   lastFetchedAt?: string | null; // When the repo was last checked for updates
+  createdAt?: string; // When the user subscribed to this repo
 }
 
 export interface UserSettings {

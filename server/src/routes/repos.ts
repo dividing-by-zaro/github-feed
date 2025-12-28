@@ -236,6 +236,7 @@ router.get('/', async (req: Request, res: Response) => {
       feedSignificance: ur.feedSignificance,
       showReleases: ur.showReleases,
       lastFetchedAt: ur.globalRepo.lastFetchedAt?.toISOString() ?? null,
+      createdAt: ur.createdAt.toISOString(),
     }));
 
     res.json(repos);
@@ -716,6 +717,7 @@ router.get('/feed/all', async (req: Request, res: Response) => {
       feedSignificance: ur.feedSignificance,
       showReleases: ur.showReleases,
       lastFetchedAt: ur.globalRepo.lastFetchedAt?.toISOString() ?? null,
+      createdAt: ur.createdAt.toISOString(),
     }));
 
     const feedGroups = userRepos.flatMap((ur) => {
