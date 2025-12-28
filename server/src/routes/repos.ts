@@ -403,6 +403,7 @@ router.post('/', async (req: Request, res: Response) => {
       feedSignificance: userRepo.feedSignificance,
       showReleases: userRepo.showReleases,
       lastFetchedAt: userRepo.globalRepo.lastFetchedAt?.toISOString() ?? null,
+      createdAt: userRepo.createdAt.toISOString(),
       feedGroups: userRepo.globalRepo.feedGroups.map((fg) => ({
         ...fg,
         repoId: repoIdStr,
