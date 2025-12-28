@@ -4,7 +4,7 @@
 
 GitHub Curator monitors repositories and uses AI to surface what matters: new features, breaking changes, security fixes, and more—all in one unified feed.
 
-<video src="docs/screenshots/github%20curator%20tour.mov" width="100%" autoplay loop muted></video>
+https://github.com/user-attachments/assets/ed17e7f1-349d-41c7-ba63-ddd42e921fac
 
 ## Why?
 
