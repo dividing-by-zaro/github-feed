@@ -36,6 +36,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
 | **Load Older Updates** | Paginate backwards through PR history |
+| **Re-index Repo** | Delete cached data and regenerate AI summaries from scratch |
 | **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
 | **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |
 | **Neo-Brutalist Design** | Bold colors, thick borders, offset shadows via Tailwind CSS v4 |
@@ -102,7 +103,7 @@ Add these API keys to your server `.env` file:
 - [ ] Stripe integration for paid plans
 - [x] Semantic PR grouping (related PRs merged into single updates)
 - [x] Batched parallel LLM calls for faster indexing
-- [ ] Per-repo "refresh" button to regenerate summaries if users suspect an issue (with a gentle reminder that this costs us money)
+- [x] Per-repo "re-index" button to regenerate summaries from scratch
 
 ## License
 

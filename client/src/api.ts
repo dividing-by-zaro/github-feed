@@ -135,6 +135,12 @@ export async function fetchRecentUpdates(repoId: string): Promise<FetchRecentRes
   });
 }
 
+export async function refreshRepo(repoId: string): Promise<RepoWithData> {
+  return apiFetch(`/api/repos/${repoId}/refresh`, {
+    method: 'POST',
+  });
+}
+
 // Search indexed repos for autocomplete
 export interface IndexedRepo {
   id: string;

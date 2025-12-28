@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Repo, Significance } from '../types';
 import { ALL_SIGNIFICANCE, SIGNIFICANCE_LABELS } from '../types';
 import { getRepoColor } from '../utils/colors';
-import { X, Trash2, Check } from 'lucide-react';
+import { X, Trash2, Check, RefreshCw } from 'lucide-react';
 
 const COLOR_OPTIONS = [
   { color: '#6366f1', name: 'Indigo' },
@@ -28,6 +28,7 @@ interface RepoSettingsModalProps {
   repo: Repo;
   onSave: (repo: Repo) => void;
   onDelete: (repoId: string) => void;
+  onRefresh: (repoId: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -35,6 +36,7 @@ export default function RepoSettingsModal({
   repo,
   onSave,
   onDelete,
+  onRefresh,
   onClose,
 }: RepoSettingsModalProps) {
   const [displayName, setDisplayName] = useState(repo.displayName || '');
@@ -46,6 +48,8 @@ export default function RepoSettingsModal({
   );
   const [showReleases, setShowReleases] = useState(repo.showReleases ?? true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +74,23 @@ export default function RepoSettingsModal({
       onClose();
     } else {
       setShowDeleteConfirm(true);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!showRefreshConfirm) {
+      setShowRefreshConfirm(true);
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      await onRefresh(repo.id);
+      onClose();
+    } catch (error) {
+      console.error('Failed to refresh repo:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -172,14 +193,25 @@ export default function RepoSettingsModal({
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-4 border-t-2 border-black/10">
-            <button
-              type="button"
-              onClick={handleDelete}
-              className={`brutal-btn ${showDeleteConfirm ? 'bg-coral border-coral' : 'brutal-btn-secondary'} text-black`}
-            >
-              <Trash2 size={16} />
-              {showDeleteConfirm ? 'Click to confirm' : 'Delete'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleDelete}
+                className={`brutal-btn ${showDeleteConfirm ? 'bg-coral border-coral' : 'brutal-btn-secondary'} text-black`}
+              >
+                <Trash2 size={16} />
+                {showDeleteConfirm ? 'Click to confirm' : 'Delete'}
+              </button>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className={`brutal-btn ${showRefreshConfirm ? 'bg-lavender border-lavender' : 'brutal-btn-secondary'} text-black`}
+              >
+                <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                {isRefreshing ? 'Refreshing...' : showRefreshConfirm ? 'Click to confirm' : 'Re-index'}
+              </button>
+            </div>
 
             <div className="flex gap-3">
               <button

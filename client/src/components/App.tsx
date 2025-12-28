@@ -10,6 +10,7 @@ import {
   unstarUpdate,
   markAsSeen,
   fetchRecentUpdates,
+  refreshRepo,
 } from '../api';
 import type {
   Repo,
@@ -166,6 +167,51 @@ export default function App() {
       setRepoSettingsTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update repo');
+    }
+  };
+
+  const handleRefreshRepo = async (repoId: string) => {
+    try {
+      const repo = repos.find((r) => r.id === repoId);
+      if (!repo) return;
+
+      const result = await refreshRepo(repoId);
+      const repoIdStr = `${result.owner}/${result.name}`;
+
+      // Update repo in state
+      setRepos((prev) =>
+        prev.map((r) =>
+          r.id === repoId
+            ? {
+                id: result.id,
+                owner: result.owner,
+                name: result.name,
+                url: result.url,
+                description: result.description,
+                avatarUrl: result.avatarUrl,
+                displayName: result.displayName,
+                customColor: result.customColor,
+                feedSignificance: result.feedSignificance,
+                showReleases: result.showReleases,
+                lastFetchedAt: result.lastFetchedAt,
+              }
+            : r
+        )
+      );
+
+      // Remove old updates/releases for this repo and add new ones
+      const oldRepoKey = `${repo.owner}/${repo.name}`;
+      setUpdates((prev) => [
+        ...prev.filter((u) => u.repoId !== oldRepoKey),
+        ...result.updates.map((u: Update) => ({ ...u, repoId: repoIdStr })),
+      ]);
+      setReleases((prev) => [
+        ...prev.filter((r) => r.repoId !== oldRepoKey),
+        ...result.releases.map((r: Release) => ({ ...r, repoId: repoIdStr })),
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh repo');
+      throw err;
     }
   };
 
@@ -518,6 +564,7 @@ export default function App() {
           repo={repoSettingsTarget}
           onSave={handleUpdateRepo}
           onDelete={handleRemoveRepo}
+          onRefresh={handleRefreshRepo}
           onClose={() => setRepoSettingsTarget(null)}
         />
       )}

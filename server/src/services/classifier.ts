@@ -436,7 +436,7 @@ Provide:
 - category: one of "feature", "enhancement", "bugfix", "breaking", "deprecation", "performance", "security", "docs"
 - significance: one of "major" (new capabilities, breaking changes), "minor" (enhancements), "patch" (bug fixes), "internal" (refactors, tests only)
 
-If the changes have no user-facing impact, use category "docs" and significance "internal".`;
+IMPORTANT: Classify by the MOST significant change. If a feature PR includes docs, it's a "feature", not "docs". Only use "docs"/"internal" when changes are PURELY documentation or internal refactors with zero user-facing impact. Example: "Add human feedback to flows" + "Add docs for human feedback" = "feature"/"major", not "docs"/"internal".`;
   }
 
   private fallbackSummary(prs: PRData[]): GroupSummaryResult {

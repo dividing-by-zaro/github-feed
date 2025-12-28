@@ -143,6 +143,7 @@ Key endpoints in `server/src/routes/repos.ts`:
 - `GET /api/repos/search?q=...` - Autocomplete search for indexed repos (returns `isFollowed` flag)
 - `POST /api/repos` - Add repo (with robust URL parsing)
 - `GET /api/repos/feed/all` - Get all feed data, refreshes stale repos
+- `POST /api/repos/:id/refresh` - Delete all data for repo and re-index fresh (runs full LLM pipeline)
 
 ## URL Parsing
 

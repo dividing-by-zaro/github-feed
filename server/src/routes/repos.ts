@@ -613,6 +613,116 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Refresh repo - delete all data and re-index fresh
+router.post('/:id/refresh', async (req: Request, res: Response) => {
+  try {
+    const user = getUser(req);
+    const { id } = req.params;
+
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    const githubToken = process.env.GITHUB_TOKEN;
+
+    if (!openaiApiKey) {
+      return res
+        .status(500)
+        .json({ error: 'OpenAI API key not configured on server' });
+    }
+
+    // Find the user's repo
+    const userRepo = await prisma.userRepo.findFirst({
+      where: { id, userId: user.id },
+      include: { globalRepo: true },
+    });
+
+    if (!userRepo) {
+      return res.status(404).json({ error: 'Repo not found' });
+    }
+
+    const globalRepo = userRepo.globalRepo;
+    const { owner, name } = globalRepo;
+    const repoIdStr = `${owner}/${name}`;
+
+    console.log(`Refreshing repo ${repoIdStr} - deleting existing data`);
+
+    // Delete all existing data for this repo
+    await prisma.$transaction([
+      // Delete GlobalPRs (must be first due to FK constraint)
+      prisma.globalPR.deleteMany({
+        where: { globalRepoId: globalRepo.id },
+      }),
+      // Delete GlobalUpdates
+      prisma.globalUpdate.deleteMany({
+        where: { globalRepoId: globalRepo.id },
+      }),
+      // Delete GlobalReleases
+      prisma.globalRelease.deleteMany({
+        where: { globalRepoId: globalRepo.id },
+      }),
+      // Reset lastFetchedAt to null
+      prisma.globalRepo.update({
+        where: { id: globalRepo.id },
+        data: { lastFetchedAt: null },
+      }),
+    ]);
+
+    console.log(`Deleted existing data for ${repoIdStr}, re-indexing...`);
+
+    // Re-index the repo fresh (30 days back, like initial add)
+    const github = new GitHubService(githubToken || undefined);
+    const classifier = new ClassifierService(openaiApiKey);
+    const sinceDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    await indexRepo(globalRepo, github, classifier, sinceDate);
+
+    // Fetch the newly created data
+    const refreshedRepo = await prisma.userRepo.findUnique({
+      where: { id },
+      include: {
+        globalRepo: {
+          include: {
+            updates: {
+              orderBy: { date: 'desc' },
+              include: { prs: true },
+            },
+            releases: { orderBy: { publishedAt: 'desc' } },
+          },
+        },
+      },
+    });
+
+    if (!refreshedRepo) {
+      return res.status(404).json({ error: 'Repo not found after refresh' });
+    }
+
+    console.log(`Finished refreshing ${repoIdStr}`);
+
+    // Format response
+    res.json({
+      id: refreshedRepo.id,
+      owner: refreshedRepo.globalRepo.owner,
+      name: refreshedRepo.globalRepo.name,
+      url: refreshedRepo.globalRepo.url,
+      description: refreshedRepo.globalRepo.description,
+      avatarUrl: refreshedRepo.globalRepo.avatarUrl,
+      displayName: refreshedRepo.displayName,
+      customColor: refreshedRepo.customColor,
+      feedSignificance: refreshedRepo.feedSignificance,
+      showReleases: refreshedRepo.showReleases,
+      lastFetchedAt: refreshedRepo.globalRepo.lastFetchedAt?.toISOString() ?? null,
+      createdAt: refreshedRepo.createdAt.toISOString(),
+      updates: refreshedRepo.globalRepo.updates.map((u) => formatUpdate(u, repoIdStr)),
+      releases: refreshedRepo.globalRepo.releases
+        .filter((r) => r.isClusterHead)
+        .map((r) => formatRelease(r, repoIdStr)),
+    });
+  } catch (error) {
+    console.error('Error refreshing repo:', error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to refresh repo',
+    });
+  }
+});
+
 // Fetch older updates for a repo (paginate backwards from oldest known PR)
 router.post('/:id/fetch-recent', async (req: Request, res: Response) => {
   try {
