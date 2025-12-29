@@ -53,53 +53,75 @@ export default function Sidebar({
           </p>
         ) : (
           <ul className="flex-1 overflow-y-auto px-2 pb-2 space-y-1">
-            {repos.map((repo) => (
-              <li
-                key={repo.id}
-                className={`group relative rounded-lg transition-all ${
-                  selectedRepoId === repo.id
-                    ? 'bg-lavender border-2 border-black shadow-brutal-sm'
-                    : 'hover:bg-cream border-2 border-transparent'
-                }`}
-              >
-                <button
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
-                  onClick={() => onSelectRepo(repo.id)}
-                >
-                  {repo.avatarUrl ? (
-                    <img
-                      src={repo.avatarUrl}
-                      alt={`${repo.owner} avatar`}
-                      className="w-8 h-8 rounded-md border-2 border-black shrink-0"
-                    />
-                  ) : (
-                    <div
-                      className="w-8 h-8 rounded-md border-2 border-black shrink-0"
-                      style={{ backgroundColor: repo.customColor || '#E8D5FF' }}
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <span className="block font-display font-semibold text-sm truncate">
-                      {repo.displayName || repo.name}
-                    </span>
-                    <span className="block text-xs text-gray-500 truncate">
-                      {repo.owner}
-                    </span>
-                  </div>
-                </button>
+            {repos.map((repo) => {
+              const isIndexing = repo.status === 'pending' || repo.status === 'indexing';
+              const isFailed = repo.status === 'failed';
 
-                <button
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenRepoSettings(repo);
-                  }}
-                  title="Repo settings"
+              return (
+                <li
+                  key={repo.id}
+                  className={`group relative rounded-lg transition-all ${
+                    selectedRepoId === repo.id
+                      ? 'bg-lavender border-2 border-black shadow-brutal-sm'
+                      : 'hover:bg-cream border-2 border-transparent'
+                  }`}
                 >
-                  <Settings size={14} />
-                </button>
-              </li>
-            ))}
+                  <button
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
+                    onClick={() => onSelectRepo(repo.id)}
+                    disabled={isIndexing}
+                  >
+                    {isIndexing ? (
+                      <div className="w-8 h-8 rounded-md border-2 border-black shrink-0 flex items-center justify-center bg-yellow/30">
+                        <Loader2 size={14} className="animate-spin" />
+                      </div>
+                    ) : isFailed ? (
+                      <div className="w-8 h-8 rounded-md border-2 border-black shrink-0 flex items-center justify-center bg-coral/30">
+                        <AlertCircle size={14} />
+                      </div>
+                    ) : repo.avatarUrl ? (
+                      <img
+                        src={repo.avatarUrl}
+                        alt={`${repo.owner} avatar`}
+                        className="w-8 h-8 rounded-md border-2 border-black shrink-0"
+                      />
+                    ) : (
+                      <div
+                        className="w-8 h-8 rounded-md border-2 border-black shrink-0"
+                        style={{ backgroundColor: repo.customColor || '#E8D5FF' }}
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className="block font-display font-semibold text-sm truncate">
+                        {repo.displayName || repo.name}
+                      </span>
+                      <span className="block text-xs text-gray-500 truncate">
+                        {isIndexing ? (
+                          <span className="text-yellow-600">{repo.progress || 'Indexing...'}</span>
+                        ) : isFailed ? (
+                          <span className="text-red-600">Failed</span>
+                        ) : (
+                          repo.owner
+                        )}
+                      </span>
+                    </div>
+                  </button>
+
+                  {!isIndexing && (
+                    <button
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenRepoSettings(repo);
+                      }}
+                      title="Repo settings"
+                    >
+                      <Settings size={14} />
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

@@ -113,12 +113,16 @@ function formatRelease(
   };
 }
 
+// Progress callback type for indexing
+type ProgressCallback = (progress: string) => Promise<void>;
+
 // Index a repo (fetch from GitHub, group with AI, summarize)
 async function indexRepo(
   globalRepo: GlobalRepo,
   github: GitHubService,
   classifier: ClassifierService,
-  sinceDate: Date
+  sinceDate: Date,
+  onProgress?: ProgressCallback
 ) {
   const { owner, name } = globalRepo;
   const repoIdStr = `${owner}/${name}`;
@@ -126,6 +130,7 @@ async function indexRepo(
   console.log(`Indexing ${repoIdStr} since ${sinceDate.toISOString()}`);
 
   // Fetch repo info
+  if (onProgress) await onProgress('Fetching repository info...');
   const repoInfo = await github.getRepoInfo(owner, name);
 
   // Update GlobalRepo with latest info
@@ -138,10 +143,12 @@ async function indexRepo(
   });
 
   // Fetch merged PRs
+  if (onProgress) await onProgress('Fetching pull requests...');
   const prs = await github.getMergedPRs(owner, name, sinceDate);
   console.log(`Found ${prs.length} merged PRs`);
 
   // Fetch releases
+  if (onProgress) await onProgress('Fetching releases...');
   const releases = await github.getReleases(owner, name, sinceDate);
   console.log(`Found ${releases.length} releases`);
 
@@ -175,10 +182,12 @@ async function indexRepo(
   // Process new PRs with two-stage pipeline
   if (newPRs.length > 0) {
     console.log('Step 1: Grouping PRs with LLM...');
+    if (onProgress) await onProgress(`Grouping ${newPRs.length} PRs...`);
     const grouping = await classifier.groupPRs(newPRs, repoInfo);
     console.log(`Created ${grouping.groups.length} semantic groups`);
 
     console.log('Step 2: Summarizing groups with LLM...');
+    if (onProgress) await onProgress(`Summarizing ${grouping.groups.length} updates...`);
     const summaries = await classifier.summarizeAllGroups(
       grouping,
       newPRs,
@@ -257,6 +266,7 @@ async function indexRepo(
   // Process new releases
   if (newReleases.length > 0) {
     console.log('Processing releases...');
+    if (onProgress) await onProgress(`Processing ${newReleases.length} releases...`);
     const { processed } = await classifier.processReleases(newReleases, repoInfo);
 
     await prisma.globalRelease.createMany({
@@ -287,6 +297,75 @@ async function indexRepo(
   console.log(`Finished indexing ${repoIdStr}`);
 }
 
+// Background indexing function - runs asynchronously, updates UserRepo status
+async function indexRepoInBackground(
+  userRepoId: string,
+  globalRepoId: string,
+  sinceDate: Date,
+  needsIndexing: boolean
+) {
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  const githubToken = process.env.GITHUB_TOKEN;
+
+  if (!openaiApiKey) {
+    await prisma.userRepo.update({
+      where: { id: userRepoId },
+      data: { status: 'failed', error: 'OpenAI API key not configured', progress: null },
+    });
+    return;
+  }
+
+  try {
+    // Update status to indexing
+    await prisma.userRepo.update({
+      where: { id: userRepoId },
+      data: { status: 'indexing', progress: 'Starting...', error: null },
+    });
+
+    const globalRepo = await prisma.globalRepo.findUnique({
+      where: { id: globalRepoId },
+    });
+
+    if (!globalRepo) {
+      throw new Error('Global repo not found');
+    }
+
+    // Only run indexing if needed (new repo or stale)
+    if (needsIndexing) {
+      const github = new GitHubService(githubToken || undefined);
+      const classifier = new ClassifierService(openaiApiKey);
+
+      // Progress callback updates the UserRepo
+      const onProgress = async (progress: string) => {
+        await prisma.userRepo.update({
+          where: { id: userRepoId },
+          data: { progress },
+        });
+      };
+
+      await indexRepo(globalRepo, github, classifier, sinceDate, onProgress);
+    }
+
+    // Mark as completed
+    await prisma.userRepo.update({
+      where: { id: userRepoId },
+      data: { status: 'completed', progress: null, error: null },
+    });
+
+    console.log(`Background indexing completed for UserRepo ${userRepoId}`);
+  } catch (error) {
+    console.error(`Background indexing failed for UserRepo ${userRepoId}:`, error);
+    await prisma.userRepo.update({
+      where: { id: userRepoId },
+      data: {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        progress: null,
+      },
+    });
+  }
+}
+
 // ===== Authenticated Routes =====
 router.use(requireAuth);
 
@@ -313,6 +392,9 @@ router.get('/', async (req: Request, res: Response) => {
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,
       showReleases: ur.showReleases,
+      status: ur.status,
+      progress: ur.progress,
+      error: ur.error,
       lastFetchedAt: ur.globalRepo.lastFetchedAt?.toISOString() ?? null,
       createdAt: ur.createdAt.toISOString(),
     }));
@@ -371,7 +453,7 @@ router.get('/search', async (req: Request, res: Response) => {
   }
 });
 
-// Add a new repo
+// Add a new repo - returns immediately, indexes in background
 router.post('/', async (req: Request, res: Response) => {
   try {
     const user = getUser(req);
@@ -381,19 +463,10 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'repoUrl is required' });
     }
 
-    const openaiApiKey = process.env.OPENAI_API_KEY;
     const githubToken = process.env.GITHUB_TOKEN;
-
-    if (!openaiApiKey) {
-      return res
-        .status(500)
-        .json({ error: 'OpenAI API key not configured on server' });
-    }
-
     const github = new GitHubService(githubToken || undefined);
-    const classifier = new ClassifierService(openaiApiKey);
 
-    // Parse repo URL
+    // Parse repo URL (validates format)
     const { owner, name } = github.parseRepoUrl(repoUrl);
 
     // Check if user already has this repo
@@ -417,8 +490,11 @@ router.post('/', async (req: Request, res: Response) => {
       ? new Date(since)
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+    // Determine if we need to index
+    let needsIndexing = false;
+
     if (!globalRepo) {
-      // Create new GlobalRepo
+      // Create new GlobalRepo - fetch basic info from GitHub (fast)
       console.log(`Creating new GlobalRepo for ${owner}/${name}`);
       const repoInfo = await github.getRepoInfo(owner, name);
 
@@ -431,50 +507,42 @@ router.post('/', async (req: Request, res: Response) => {
           avatarUrl: repoInfo.avatarUrl,
         },
       });
-
-      // Index the repo (fetch PRs, releases, classify)
-      await indexRepo(globalRepo, github, classifier, sinceDate);
+      needsIndexing = true;
     } else {
-      // Check if stale and refresh if needed
+      // Check if stale
       const isStale =
         !globalRepo.lastFetchedAt ||
         Date.now() - globalRepo.lastFetchedAt.getTime() > STALE_THRESHOLD_MS;
 
       if (isStale) {
-        console.log(`Refreshing stale GlobalRepo ${owner}/${name}`);
-        const refreshSince = globalRepo.lastFetchedAt || sinceDate;
-        await indexRepo(globalRepo, github, classifier, refreshSince);
+        console.log(`Will refresh stale GlobalRepo ${owner}/${name}`);
+        needsIndexing = true;
       } else {
         console.log(`Using cached GlobalRepo ${owner}/${name}`);
       }
     }
 
-    // Reload globalRepo with all data
-    globalRepo = await prisma.globalRepo.findUnique({
-      where: { id: globalRepo.id },
-    });
-
-    // Create UserRepo link
+    // Create UserRepo link with appropriate status
     const userRepo = await prisma.userRepo.create({
       data: {
         userId: user.id,
-        globalRepoId: globalRepo!.id,
+        globalRepoId: globalRepo.id,
+        status: needsIndexing ? 'pending' : 'completed',
       },
       include: {
-        globalRepo: {
-          include: {
-            updates: {
-              orderBy: { date: 'desc' },
-              include: { prs: true },
-            },
-            releases: { orderBy: { publishedAt: 'desc' } },
-          },
-        },
+        globalRepo: true,
       },
     });
 
-    // Format response
-    const repoIdStr = `${userRepo.globalRepo.owner}/${userRepo.globalRepo.name}`;
+    // Fire background indexing (don't await!)
+    if (needsIndexing) {
+      const refreshSince = globalRepo.lastFetchedAt || sinceDate;
+      indexRepoInBackground(userRepo.id, globalRepo.id, refreshSince, true).catch(
+        (err) => console.error('Background indexing error:', err)
+      );
+    }
+
+    // Return immediately with status
     res.json({
       id: userRepo.id,
       globalRepoId: userRepo.globalRepoId,
@@ -487,12 +555,13 @@ router.post('/', async (req: Request, res: Response) => {
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
       showReleases: userRepo.showReleases,
+      status: userRepo.status,
+      progress: userRepo.progress,
+      error: userRepo.error,
       lastFetchedAt: userRepo.globalRepo.lastFetchedAt?.toISOString() ?? null,
       createdAt: userRepo.createdAt.toISOString(),
-      updates: userRepo.globalRepo.updates.map((u) => formatUpdate(u, repoIdStr)),
-      releases: userRepo.globalRepo.releases
-        .filter((r) => r.isClusterHead)
-        .map((r) => formatRelease(r, repoIdStr)),
+      updates: [], // Empty initially - will be populated after indexing
+      releases: [],
     });
   } catch (error) {
     console.error('Error adding repo:', error);
@@ -540,7 +609,11 @@ router.get('/:id', async (req: Request, res: Response) => {
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
       showReleases: userRepo.showReleases,
+      status: userRepo.status,
+      progress: userRepo.progress,
+      error: userRepo.error,
       lastFetchedAt: userRepo.globalRepo.lastFetchedAt?.toISOString() ?? null,
+      createdAt: userRepo.createdAt.toISOString(),
       updates: userRepo.globalRepo.updates.map((u) => formatUpdate(u, repoIdStr)),
       releases: userRepo.globalRepo.releases
         .filter((r) => r.isClusterHead)
@@ -996,6 +1069,9 @@ router.get('/feed/all', async (req: Request, res: Response) => {
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,
       showReleases: ur.showReleases,
+      status: ur.status,
+      progress: ur.progress,
+      error: ur.error,
       lastFetchedAt: ur.globalRepo.lastFetchedAt?.toISOString() ?? null,
       createdAt: ur.createdAt.toISOString(),
     }));

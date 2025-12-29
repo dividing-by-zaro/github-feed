@@ -60,6 +60,8 @@ export interface Release {
   isClusterHead?: boolean | null;
 }
 
+export type RepoStatus = 'pending' | 'indexing' | 'completed' | 'failed';
+
 export interface Repo {
   id: string;
   globalRepoId: string;
@@ -73,6 +75,10 @@ export interface Repo {
   customColor?: string | null;
   feedSignificance?: Significance[];
   showReleases?: boolean;
+  // Indexing status
+  status?: RepoStatus;
+  progress?: string | null;
+  error?: string | null;
   lastFetchedAt?: string | null;
   createdAt?: string;
 }

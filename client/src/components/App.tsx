@@ -16,6 +16,7 @@ import {
   createReport,
   deleteReport as deleteReportApi,
   getReportMarkdown,
+  getRepo,
 } from '../api';
 import type {
   Repo,
@@ -62,8 +63,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // Polling interval ref for report generation
+  // Polling interval refs for background processes
   const reportPollingRef = useRef<number | null>(null);
+  const repoPollingRef = useRef<number | null>(null);
 
   // Session-based lastSeenAt: snapshot user's lastSeenAt at session start
   // so "new" badges persist while navigating during the session
@@ -144,6 +146,7 @@ export default function App() {
     try {
       const result = await addRepo(repoUrl);
 
+      // Add repo immediately with its current status (pending/indexing/completed)
       const newRepo: Repo = {
         id: result.id,
         globalRepoId: result.globalRepoId,
@@ -156,24 +159,34 @@ export default function App() {
         customColor: result.customColor,
         feedSignificance: result.feedSignificance,
         showReleases: result.showReleases,
+        status: result.status,
+        progress: result.progress,
+        error: result.error,
         lastFetchedAt: result.lastFetchedAt,
+        createdAt: result.createdAt,
       };
 
       setRepos((prev) => [...prev, newRepo]);
-      setUpdates((prev) => [
-        ...prev,
-        ...result.updates.map((u: Update) => ({
-          ...u,
-          repoId: `${result.owner}/${result.name}`,
-        })),
-      ]);
-      setReleases((prev) => [
-        ...prev,
-        ...result.releases.map((r: Release) => ({
-          ...r,
-          repoId: `${result.owner}/${result.name}`,
-        })),
-      ]);
+
+      // Only add updates/releases if they exist (for cached repos)
+      if (result.updates?.length > 0) {
+        setUpdates((prev) => [
+          ...prev,
+          ...result.updates.map((u: Update) => ({
+            ...u,
+            repoId: `${result.owner}/${result.name}`,
+          })),
+        ]);
+      }
+      if (result.releases?.length > 0) {
+        setReleases((prev) => [
+          ...prev,
+          ...result.releases.map((r: Release) => ({
+            ...r,
+            repoId: `${result.owner}/${result.name}`,
+          })),
+        ]);
+      }
       setShowAddModal(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add repo');
@@ -231,6 +244,7 @@ export default function App() {
         prev.map((r) =>
           r.id === repoId
             ? {
+                ...r,
                 id: result.id,
                 owner: result.owner,
                 name: result.name,
@@ -241,6 +255,9 @@ export default function App() {
                 customColor: result.customColor,
                 feedSignificance: result.feedSignificance,
                 showReleases: result.showReleases,
+                status: result.status,
+                progress: result.progress,
+                error: result.error,
                 lastFetchedAt: result.lastFetchedAt,
               }
             : r
@@ -385,6 +402,62 @@ export default function App() {
       }
     };
   }, [reports]);
+
+  // Poll for indexing repos
+  useEffect(() => {
+    const indexingRepos = repos.filter(
+      (r) => r.status === 'pending' || r.status === 'indexing'
+    );
+
+    if (indexingRepos.length === 0) {
+      if (repoPollingRef.current) {
+        clearInterval(repoPollingRef.current);
+        repoPollingRef.current = null;
+      }
+      return;
+    }
+
+    if (!repoPollingRef.current) {
+      repoPollingRef.current = window.setInterval(async () => {
+        for (const repo of indexingRepos) {
+          try {
+            const updated = await getRepo(repo.id);
+
+            // Update repo in state
+            setRepos((prev) =>
+              prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status, progress: updated.progress, error: updated.error } : r))
+            );
+
+            // If just completed, add the updates and releases
+            if (updated.status === 'completed' && (repo.status === 'pending' || repo.status === 'indexing')) {
+              const repoIdStr = `${updated.owner}/${updated.name}`;
+              if (updated.updates?.length > 0) {
+                setUpdates((prev) => [
+                  ...prev,
+                  ...updated.updates.map((u: Update) => ({ ...u, repoId: repoIdStr })),
+                ]);
+              }
+              if (updated.releases?.length > 0) {
+                setReleases((prev) => [
+                  ...prev,
+                  ...updated.releases.map((r: Release) => ({ ...r, repoId: repoIdStr })),
+                ]);
+              }
+            }
+          } catch (err) {
+            console.error('Failed to poll repo status:', err);
+          }
+        }
+      }, 2000);
+    }
+
+    return () => {
+      if (repoPollingRef.current) {
+        clearInterval(repoPollingRef.current);
+        repoPollingRef.current = null;
+      }
+    };
+  }, [repos]);
 
   const selectedReport = useMemo(() => {
     if (!selectedReportId) return null;

@@ -114,6 +114,9 @@ model UserRepo {
   customColor      String?
   feedSignificance String[]   @default(["major", "minor", "patch", "internal"])
   showReleases     Boolean    @default(true)
+  status           String     @default("completed") // pending, indexing, completed, failed
+  progress         String?    // Progress message during indexing
+  error            String?    // Error message if indexing failed
   userId           String
   globalRepoId     String
   createdAt        DateTime   @default(now())

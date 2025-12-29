@@ -75,6 +75,7 @@ github-feed/
 - **Tailwind CSS v4**: Uses `@theme inline` for custom color tokens and `@source` directive. Custom component classes (brutal-card, brutal-btn variants) defined in index.css
 - **Reports generation**: 3-phase LLM pipeline: (1) semantic theme grouping with action-oriented names, (2) parallel theme summaries as scannable bullet points with bold key terms, (3) impact-first executive summary. Version bumps, dependency updates, and internal tooling classified as `internal` and excluded from reports.
 - **Prompt templates**: LLM prompts stored as markdown files in `server/src/prompts/`, loaded via Handlebars for variable interpolation. Use `{{var}}` for escaped values, `{{{var}}}` for raw multi-line content, `{{#if var}}...{{/if}}` for conditionals.
+- **Background indexing**: Repo indexing runs asynchronously after `POST /api/repos` returns. `UserRepo.status` tracks state (`pending`, `indexing`, `completed`, `failed`), `progress` shows current step, `error` captures failures. Frontend polls `GET /api/repos/:id` every 2 seconds during indexing, similar to report generation.
 
 ## Database Schema
 
@@ -86,7 +87,7 @@ github-feed/
 
 **User tables**:
 - `User` - Auth info, preferences, lastSeenAt
-- `UserRepo` - User's subscription to a GlobalRepo with custom settings
+- `UserRepo` - User's subscription to a GlobalRepo with custom settings, indexing status (`status`, `progress`, `error`)
 - `StarredUpdate` - User's starred items
 - `Report` - User-generated reports for a repo over a date range (links to User and GlobalRepo)
 
@@ -124,9 +125,10 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 
 1. User adds repo URL
 2. Server checks if `GlobalRepo` exists for this owner/name
-3. If exists and fresh (<1 hour): instantly create `UserRepo` link (no API calls)
-4. If missing or stale: fetch PRs/releases from GitHub, classify with OpenAI, store in global tables
-5. Results returned to client; future users adding same repo get cached data
+3. Creates `UserRepo` immediately with `status: 'pending'` (or `'completed'` for cached repos)
+4. Returns response immediately; repo appears in sidebar with loading spinner
+5. Background task indexes repo (fetch PRs, group with LLM, summarize), updating `progress` field
+6. Frontend polls every 2s; when `status: 'completed'`, updates/releases are fetched and displayed
 
 ## Feed Refresh
 
