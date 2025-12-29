@@ -41,6 +41,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
 | **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |
 | **Reports** | Generate AI summaries of repo changes over a date range, grouped by significance |
+| **Prompt Templates** | LLM prompts stored as editable markdown files with Handlebars templating |
 | **Neo-Brutalist Design** | Bold colors, thick borders, offset shadows via Tailwind CSS v4 |
 
 ## Quick Start

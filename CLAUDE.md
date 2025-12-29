@@ -52,6 +52,10 @@ github-feed/
 │   ├── prisma/             # Prisma schema & migrations
 │   └── src/
 │       ├── auth/           # Passport.js config & middleware
+│       ├── prompts/        # LLM prompts as markdown templates
+│       │   ├── loader.ts   # Handlebars-based prompt loader
+│       │   ├── classifier/ # PR grouping & summary prompts
+│       │   └── reports/    # Report generation prompts
 │       ├── routes/         # Express routes (auth, repos, user)
 │       ├── services/       # GitHub & classifier services
 │       ├── env.ts          # Dotenv loader (must import first)
@@ -70,6 +74,7 @@ github-feed/
 - **Timeline view with date grouping**: Feed items grouped by date with sticky DateHeader components and GapIndicator showing time gaps between updates
 - **Tailwind CSS v4**: Uses `@theme inline` for custom color tokens and `@source` directive. Custom component classes (brutal-card, brutal-btn variants) defined in index.css
 - **Reports generation**: 3-phase LLM pipeline: (1) semantic theme grouping with action-oriented names, (2) parallel theme summaries as scannable bullet points with bold key terms, (3) impact-first executive summary. Version bumps, dependency updates, and internal tooling classified as `internal` and excluded from reports.
+- **Prompt templates**: LLM prompts stored as markdown files in `server/src/prompts/`, loaded via Handlebars for variable interpolation. Use `{{var}}` for escaped values, `{{{var}}}` for raw multi-line content, `{{#if var}}...{{/if}}` for conditionals.
 
 ## Database Schema
 

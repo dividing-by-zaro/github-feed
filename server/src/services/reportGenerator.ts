@@ -9,6 +9,7 @@ import type {
   ExecutiveSummaryResult,
   Significance,
 } from '../types.js';
+import { loadSystemPrompt, loadUserPrompt } from '../prompts/loader.js';
 
 // JSON Schema for theme grouping
 const THEME_GROUPING_SCHEMA = {
@@ -211,55 +212,21 @@ export class ReportGenerator {
       })
       .join('\n');
 
-    const prompt = `You are analyzing ${updates.length} updates from ${repo.owner}/${repo.name}.
-${repo.description ? `Repository: ${repo.description}` : ''}
-
-Group these updates into SPECIFIC themes based on what was actually built or fixed.
-
-NAMING RULES:
-- Theme names MUST start with an action verb: "Add", "Fix", "Improve", "Remove", "Update", "Support"
-- Theme names MUST mention the specific feature, API, or system affected
-- Theme names should be narrow enough that only truly related changes belong together
-
-BAD NAMES (too vague):
-- "Authentication Improvements"
-- "UI Enhancements"
-- "Security Fixes"
-- "Performance Optimizations"
-- "Bug Fixes"
-
-GOOD NAMES:
-- "Add SSO support for Google and Okta"
-- "Add toast notifications for async operations"
-- "Add streaming response support for chat completions"
-- "Fix rate limiting for concurrent requests"
-- "Add dark mode toggle and theme persistence"
-- "Support custom validators in form inputs"
-
-GROUPING RULES:
-- Only group updates that are directly related to the SAME feature or fix
-- Don't group unrelated changes just because they're both "performance" or both "UI"
-- Prefer more themes (5-10) over fewer vague themes
-- If an update doesn't fit with others, give it its own theme
-
-Updates to analyze:
-${updateDescriptions}
-
-Return themes with:
-- name: Action-oriented, specific theme name (verb + what changed)
-- significance: The highest significance level among the theme's updates (major > minor > patch)
-- updateIds: Array of update IDs that belong to this theme
-- oneLineSummary: A single sentence with concrete details about what changed`;
+    const systemPrompt = loadSystemPrompt('reports', 'theme-grouping-system');
+    const userPrompt = loadUserPrompt('reports', 'theme-grouping-user', {
+      updateCount: updates.length,
+      repoOwner: repo.owner,
+      repoName: repo.name,
+      repoDescription: repo.description,
+      updateDescriptions,
+    });
 
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content: 'You are an expert at organizing software changes into meaningful themes for stakeholder reports.',
-          },
-          { role: 'user', content: prompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.3,
         response_format: {
@@ -405,40 +372,20 @@ Return themes with:
       })
       .join('\n');
 
-    const prompt = `Summarize this theme from ${repo.owner}/${repo.name} as scannable bullet points.
-
-Theme: ${theme.name}
-
-Updates:
-${updateDescriptions}
-
-FORMAT:
-- Use 3-6 bullet points
-- Bold **key terms, APIs, flags, or metrics** that a developer would search for
-- Cite PR numbers inline (e.g., "Added X (#123)")
-- Each bullet = one concrete change users will notice
-
-CONTENT RULES:
-- Only include changes that affect end users or developers using this project
-- Skip: docs updates, version bumps, internal refactors, test-only changes, dependency updates
-- Be specific: "**streaming responses** now supported" not "improved performance"
-- Include concrete details: config names, CLI flags, error messages, % improvements
-- No filler phrases ("This release includes", "We're excited to", "Various improvements")
-
-TONE:
-- Direct and technical - our audience is developers who want facts, not marketing
-- Lead with the what, not the why
-- If a bug was fixed, state what broke and what works now`;
+    const systemPrompt = loadSystemPrompt('reports', 'theme-summary-system');
+    const userPrompt = loadUserPrompt('reports', 'theme-summary-user', {
+      repoOwner: repo.owner,
+      repoName: repo.name,
+      themeName: theme.name,
+      updateDescriptions,
+    });
 
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content: 'You write concise, technical changelogs for developers. No fluff, just facts.',
-          },
-          { role: 'user', content: prompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.2,
         response_format: {
@@ -523,40 +470,22 @@ TONE:
 
     const formatDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    const prompt = `Write an executive summary for ${repo.owner}/${repo.name} covering ${formatDate(startDate)} to ${formatDate(endDate)}.
-${repo.description ? `Repository: ${repo.description}` : ''}
-
-Themes:
-${themeSummaries}
-
-STRUCTURE:
-1. **Impact verdict** (1 sentence): Was this period high-impact, moderate, low-impact, or quiet for end users?
-2. **Key changes** (2-4 sentences): What are the 1-3 most important things a user of this project should know? Bold the specific features, fixes, or APIs.
-3. **Activity context** (1-2 sentences): Was this a busy period (many PRs) or quiet? Was the work substantive (new features, critical fixes) or maintenance (deps, docs, minor tweaks)?
-
-CONTENT RULES:
-- Lead with what matters to someone USING this project, not maintaining it
-- If major bugs were fixed, call them out explicitly: "**Fixed:** long-standing issue where X would fail under Y"
-- Be specific: name features, APIs, error messages, not vague categories
-- Skip: internal refactors, test improvements, doc updates unless they indicate something user-facing
-
-TONE:
-- Direct, no filler ("This period saw...", "The team has been busy...", "We're excited to...")
-- Bold **key terms** a developer would ctrl+F for
-- Write for a technical audience who wants facts, not stakeholder marketing
-
-BAD: "This reporting period includes several important updates across multiple areas of the codebase, demonstrating continued investment in the platform."
-GOOD: "**High-impact period.** Added **streaming responses** for chat completions and fixed a **memory leak** affecting long-running connections. Busy month with 47 PRs, mostly substantive feature work."`;
+    const systemPrompt = loadSystemPrompt('reports', 'executive-summary-system');
+    const userPrompt = loadUserPrompt('reports', 'executive-summary-user', {
+      repoOwner: repo.owner,
+      repoName: repo.name,
+      repoDescription: repo.description,
+      startDate: formatDate(startDate),
+      endDate: formatDate(endDate),
+      themeSummaries,
+    });
 
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content: 'You are a technical writer creating executive summaries for software development reports.',
-          },
-          { role: 'user', content: prompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.3,
         response_format: {

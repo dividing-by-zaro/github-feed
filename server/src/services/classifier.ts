@@ -8,6 +8,7 @@ import type {
   ReleaseType,
   ReleaseCluster,
 } from '../types.js';
+import { loadSystemPrompt, loadUserPrompt } from '../prompts/loader.js';
 
 // JSON Schema for PR grouping (Step 1)
 const PR_GROUPING_SCHEMA = {
@@ -250,18 +251,22 @@ export class ClassifierService {
       };
     }
 
-    const prompt = this.buildGroupingPrompt(prs, repoInfo);
+    const prDescriptions = this.buildPRDescriptions(prs);
+    const systemPrompt = loadSystemPrompt('classifier', 'pr-grouping-system');
+    const userPrompt = loadUserPrompt('classifier', 'pr-grouping-user', {
+      prCount: prs.length,
+      repoOwner: repoInfo.owner,
+      repoName: repoInfo.name,
+      repoDescription: repoInfo.description,
+      prDescriptions,
+    });
 
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content:
-              'You are an expert at analyzing GitHub PRs and identifying semantic relationships between them. Group related PRs together.',
-          },
-          { role: 'user', content: prompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.3,
         response_format: {
@@ -299,8 +304,8 @@ export class ClassifierService {
     }
   }
 
-  private buildGroupingPrompt(prs: PRData[], repoInfo: RepoInfo): string {
-    const prDescriptions = prs
+  private buildPRDescriptions(prs: PRData[]): string {
+    return prs
       .map((pr) => {
         const commits = pr.commits
           .slice(0, 5)
@@ -315,28 +320,6 @@ Description: ${(pr.body || 'No description').slice(0, 400)}
 Commits: ${commits || 'none'}`;
       })
       .join('\n---\n');
-
-    return `You are analyzing ${prs.length} recent PRs from ${repoInfo.owner}/${repoInfo.name}.
-${repoInfo.description ? `Repository: ${repoInfo.description}` : ''}
-
-Your task: Group these PRs by SEMANTIC CHANGE - what capability or fix they represent together.
-
-Guidelines:
-- PRs implementing the same feature across multiple steps → ONE group
-- A feature PR + its test PR + its docs PR → ONE group
-- A bug fix + its follow-up fixes → ONE group
-- Unrelated PRs → SEPARATE groups (each in their own group)
-- Dependency bumps from same tool (dependabot) → can be grouped as "Dependency updates"
-- Internal refactors with no user impact → can be grouped as "Internal improvements"
-
-PRs to analyze:
-${prDescriptions}
-
-Return a JSON object with groups. Each group should have:
-- prNumbers: array of PR numbers that belong together
-- reason: brief explanation of why they're grouped (e.g., "Same feature: authentication", "Related bug fixes")
-
-IMPORTANT: Every PR must appear in exactly one group. If a PR is unrelated to others, put it in its own group.`;
   }
 
   private fallbackGrouping(prs: PRData[]): PRGroupingResult {
@@ -370,18 +353,25 @@ IMPORTANT: Every PR must appear in exactly one group. If a PR is unrelated to ot
       };
     }
 
-    const prompt = this.buildSummaryPrompt(prs, repoInfo);
+    const isMultiplePRs = prs.length > 1;
+    const prDescriptions = this.buildSummaryPRDescriptions(prs);
+
+    const systemPrompt = loadSystemPrompt('classifier', 'group-summary-system');
+    const userPrompt = loadUserPrompt('classifier', 'group-summary-user', {
+      isMultiplePRs,
+      prCount: prs.length,
+      repoOwner: repoInfo.owner,
+      repoName: repoInfo.name,
+      repoDescription: repoInfo.description,
+      prDescriptions,
+    });
 
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content:
-              'You are a technical writer creating concise, user-focused summaries of code changes. Focus on what users can do, not implementation details.',
-          },
-          { role: 'user', content: prompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.3,
         response_format: {
@@ -403,10 +393,8 @@ IMPORTANT: Every PR must appear in exactly one group. If a PR is unrelated to ot
     }
   }
 
-  private buildSummaryPrompt(prs: PRData[], repoInfo: RepoInfo): string {
-    const isMultiplePRs = prs.length > 1;
-
-    const prDescriptions = prs
+  private buildSummaryPRDescriptions(prs: PRData[]): string {
+    return prs
       .map((pr) => {
         const commits = pr.commits
           .slice(0, 5)
@@ -419,32 +407,6 @@ Commits:
 ${commits || '- No commits'}`;
       })
       .join('\n\n---\n\n');
-
-    const multiPRNote = isMultiplePRs
-      ? `\nThese ${prs.length} PRs are RELATED and should be summarized as ONE cohesive change.`
-      : '';
-
-    return `Summarize ${isMultiplePRs ? 'these related PRs' : 'this PR'} from ${repoInfo.owner}/${repoInfo.name}.
-${repoInfo.description ? `Repository: ${repoInfo.description}` : ''}
-${multiPRNote}
-
-${prDescriptions}
-
-Provide:
-- title: A clear, plain English title (5-10 words) describing the main change
-- summary: 2-4 SHORT bullet points (each starting with "- "). Keep each bullet under 15 words. Focus on what users can do, not implementation details.
-- category: one of "feature", "enhancement", "bugfix", "breaking", "deprecation", "performance", "security", "docs"
-- significance: one of "major" (new capabilities, breaking changes), "minor" (enhancements), "patch" (bug fixes), "internal" (zero user-facing impact)
-
-SIGNIFICANCE RULES:
-- Use "internal" for: version bumps, dependency updates, release prep, CI/CD changes, test-only changes, refactors with no user-facing impact, changelog updates, lock file updates
-- If a PR title contains "bump", "version", "release", "deps", "dependency", "chore", or similar → likely "internal"
-- Classify by the MOST significant change. If a feature PR includes docs, it's a "feature", not "docs"
-- Only use "docs"/"internal" when changes are PURELY documentation or internal tooling
-
-Example: "Bump version to 1.2.0" → internal
-Example: "Update dependencies" → internal
-Example: "Add human feedback to flows" + "Add docs for human feedback" → feature/major`;
   }
 
   private fallbackSummary(prs: PRData[]): GroupSummaryResult {
@@ -509,29 +471,22 @@ Example: "Add human feedback to flows" + "Add docs for human feedback" → featu
       return null;
     }
 
-    const prompt = `Summarize this GitHub Release for developers.
-
-Repository: ${repoInfo.owner}/${repoInfo.name}
-${repoInfo.description ? `Description: ${repoInfo.description}` : ''}
-
-Release: ${release.title} (${release.tagName})
-
-Release Notes:
-${release.body.slice(0, 4000)}
-
-Provide 3-5 SHORT bullet points (each starting with "- ") describing the key changes.
-Keep each bullet under 15 words. Focus on what users can do or what changed.`;
+    const systemPrompt = loadSystemPrompt('classifier', 'release-summary-system');
+    const userPrompt = loadUserPrompt('classifier', 'release-summary-user', {
+      repoOwner: repoInfo.owner,
+      repoName: repoInfo.name,
+      repoDescription: repoInfo.description,
+      releaseTitle: release.title,
+      releaseTagName: release.tagName,
+      releaseBody: release.body.slice(0, 4000),
+    });
 
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content:
-              'You are a technical writer summarizing release notes concisely.',
-          },
-          { role: 'user', content: prompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.3,
         response_format: {
@@ -562,28 +517,22 @@ Keep each bullet under 15 words. Focus on what users can do or what changed.`;
       .map((r) => `${r.tagName}:\n${(r.body || 'No notes').slice(0, 1000)}`)
       .join('\n\n---\n\n');
 
-    const prompt = `Summarize these ${cluster.releases.length} related releases from ${repoInfo.owner}/${repoInfo.name}.
-
-These are all ${cluster.releaseType} releases for version ${cluster.baseVersion}.
-
-Release Notes:
-${releaseBodies}
-
-Create ONE unified summary covering the most important changes across all releases.
-- title: e.g., "v0.23.x preview releases" or "v1.2.x patch updates"
-- summary: 3-5 bullet points covering key changes (each starting with "- ", under 15 words)
-- significance: "major", "minor", "patch", or "internal"`;
+    const systemPrompt = loadSystemPrompt('classifier', 'release-cluster-system');
+    const userPrompt = loadUserPrompt('classifier', 'release-cluster-user', {
+      releaseCount: cluster.releases.length,
+      repoOwner: repoInfo.owner,
+      repoName: repoInfo.name,
+      releaseType: cluster.releaseType,
+      baseVersion: cluster.baseVersion,
+      releaseBodies,
+    });
 
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content:
-              'You are a technical writer creating concise release summaries.',
-          },
-          { role: 'user', content: prompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.3,
         response_format: {
