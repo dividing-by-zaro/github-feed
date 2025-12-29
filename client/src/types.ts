@@ -61,6 +61,7 @@ export interface Release {
 
 export interface Repo {
   id: string;
+  globalRepoId: string;
   owner: string;
   name: string;
   url: string;
@@ -130,3 +131,59 @@ export const RELEASE_TYPE_LABELS: Record<ReleaseType, string> = {
   preview: 'Preview',
   patch: 'Patch',
 };
+
+// ============ REPORT TYPES ============
+
+export type ReportStatus = 'pending' | 'generating' | 'completed' | 'failed';
+
+export interface ReportTheme {
+  name: string;
+  summary: string;
+  relatedPRs: {
+    number: number;
+    title: string;
+    url: string;
+  }[];
+}
+
+export interface ReportSection {
+  significance: 'major' | 'minor' | 'patch';
+  themes: ReportTheme[];
+}
+
+export interface ReportContent {
+  executiveSummary: string;
+  sections: ReportSection[];
+  metadata: {
+    repoName: string;
+    repoOwner: string;
+    startDate: string;
+    endDate: string;
+    prCount: number;
+    updateCount: number;
+    generatedAt: string;
+  };
+}
+
+export interface Report {
+  id: string;
+  title: string;
+  globalRepoId: string;
+  repoOwner: string;
+  repoName: string;
+  startDate: string;
+  endDate: string;
+  content: ReportContent | null;
+  markdown: string | null;
+  status: ReportStatus;
+  progress: string | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateReportInput {
+  globalRepoId: string;
+  startDate: string;
+  endDate: string;
+}

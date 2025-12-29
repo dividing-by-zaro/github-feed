@@ -77,6 +77,7 @@ model GlobalRepo {
   prs           GlobalPR[]
   releases      GlobalRelease[]
   userRepos     UserRepo[]
+  reports       Report[]
 
   @@unique([owner, name])
 }
@@ -104,6 +105,7 @@ model User {
   lastSeenAt          DateTime?
   starredUpdates      StarredUpdate[]
   userRepos           UserRepo[]
+  reports             Report[]
 }
 
 model UserRepo {
@@ -119,6 +121,27 @@ model UserRepo {
   user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, globalRepoId])
+}
+
+model Report {
+  id           String     @id @default(cuid())
+  title        String
+  globalRepoId String
+  globalRepo   GlobalRepo @relation(fields: [globalRepoId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate    DateTime
+  endDate      DateTime
+  content      Json?
+  markdown     String?
+  status       String     @default("pending")
+  progress     String?
+  error        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([globalRepoId])
 }
 
 model session {

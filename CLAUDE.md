@@ -69,6 +69,7 @@ github-feed/
 - **Per-user settings**: Each user's repo subscription has custom color, display name, and significance filter (stored in `UserRepo`)
 - **Timeline view with date grouping**: Feed items grouped by date with sticky DateHeader components and GapIndicator showing time gaps between updates
 - **Tailwind CSS v4**: Uses `@theme inline` for custom color tokens and `@source` directive. Custom component classes (brutal-card, brutal-btn variants) defined in index.css
+- **Reports generation**: 3-phase LLM pipeline: (1) theme grouping, (2) parallel theme summaries, (3) executive summary. Background generation with polling for status updates. Uses releases as section boundaries when available.
 
 ## Database Schema
 
@@ -82,6 +83,7 @@ github-feed/
 - `User` - Auth info, preferences, lastSeenAt
 - `UserRepo` - User's subscription to a GlobalRepo with custom settings
 - `StarredUpdate` - User's starred items
+- `Report` - User-generated reports for a repo over a date range (links to User and GlobalRepo)
 
 ## Authentication
 
@@ -144,6 +146,13 @@ Key endpoints in `server/src/routes/repos.ts`:
 - `POST /api/repos` - Add repo (with robust URL parsing)
 - `GET /api/repos/feed/all` - Get all feed data, refreshes stale repos
 - `POST /api/repos/:id/refresh` - Delete all data for repo and re-index fresh (runs full LLM pipeline)
+
+Reports endpoints in `server/src/routes/reports.ts`:
+- `GET /api/reports` - List user's reports
+- `POST /api/reports` - Create report (triggers background generation)
+- `GET /api/reports/:id` - Get report with status for polling
+- `DELETE /api/reports/:id` - Delete report
+- `GET /api/reports/:id/markdown` - Export report as markdown
 
 ## URL Parsing
 

@@ -1,4 +1,4 @@
-import type { Repo, Update, Release, Category, Significance } from './types';
+import type { Repo, Update, Release, Category, Significance, Report, CreateReportInput } from './types';
 
 // API base URL - uses environment variable in dev, empty string in production (same origin)
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -155,4 +155,31 @@ export interface IndexedRepo {
 export async function searchIndexedRepos(query: string): Promise<IndexedRepo[]> {
   if (query.length < 2) return [];
   return apiFetch(`/api/repos/search?q=${encodeURIComponent(query)}`);
+}
+
+// ============ REPORT ENDPOINTS ============
+
+export async function getReports(): Promise<Report[]> {
+  return apiFetch('/api/reports');
+}
+
+export async function getReport(id: string): Promise<Report> {
+  return apiFetch(`/api/reports/${encodeURIComponent(id)}`);
+}
+
+export async function createReport(data: CreateReportInput): Promise<Report> {
+  return apiFetch('/api/reports', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteReport(id: string): Promise<void> {
+  return apiFetch(`/api/reports/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getReportMarkdown(id: string): Promise<{ markdown: string; filename: string }> {
+  return apiFetch(`/api/reports/${encodeURIComponent(id)}/markdown`);
 }

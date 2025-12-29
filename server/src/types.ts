@@ -129,3 +129,56 @@ export interface ReleaseCluster {
   releaseType: ReleaseType;
   releases: ReleaseData[];
 }
+
+// ============ REPORT TYPES ============
+
+export type ReportStatus = 'pending' | 'generating' | 'completed' | 'failed';
+
+export interface ReportTheme {
+  name: string;
+  summary: string;
+  relatedPRs: {
+    number: number;
+    title: string;
+    url: string;
+  }[];
+}
+
+export interface ReportSection {
+  significance: 'major' | 'minor' | 'patch';
+  themes: ReportTheme[];
+}
+
+export interface ReportContent {
+  executiveSummary: string;
+  sections: ReportSection[];
+  metadata: {
+    repoName: string;
+    repoOwner: string;
+    startDate: string;
+    endDate: string;
+    prCount: number;
+    updateCount: number;
+    generatedAt: string;
+  };
+}
+
+// Theme grouping result from LLM
+export interface ThemeGroupingResult {
+  themes: {
+    name: string;
+    significance: Significance;
+    updateIds: string[];
+    oneLineSummary: string;
+  }[];
+}
+
+// Theme summary result from LLM
+export interface ThemeSummaryResult {
+  summary: string;
+}
+
+// Executive summary result from LLM
+export interface ExecutiveSummaryResult {
+  summary: string;
+}

@@ -39,6 +39,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Re-index Repo** | Delete cached data and regenerate AI summaries from scratch |
 | **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
 | **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |
+| **Reports** | Generate AI summaries of repo changes over a date range, grouped by significance |
 | **Neo-Brutalist Design** | Bold colors, thick borders, offset shadows via Tailwind CSS v4 |
 
 ## Quick Start
@@ -104,6 +105,7 @@ Add these API keys to your server `.env` file:
 - [x] Semantic PR grouping (related PRs merged into single updates)
 - [x] Batched parallel LLM calls for faster indexing
 - [x] Per-repo "re-index" button to regenerate summaries from scratch
+- [x] Reports feature - generate summaries of repo changes over a date range
 
 ## License
 

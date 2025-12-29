@@ -12,6 +12,7 @@ import passport, { initializePassport } from './auth/passport.js';
 import authRouter from './routes/auth.js';
 import reposRouter from './routes/repos.js';
 import userRouter from './routes/user.js';
+import reportsRouter from './routes/reports.js';
 import { pool } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -67,6 +68,7 @@ app.use(passport.session());
 app.use('/auth', authRouter);
 app.use('/api/repos', reposRouter);
 app.use('/api/user', userRouter);
+app.use('/api/reports', reportsRouter);
 
 // Health check
 app.get('/health', (req, res) => {

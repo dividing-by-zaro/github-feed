@@ -301,6 +301,7 @@ router.get('/', async (req: Request, res: Response) => {
     // Format response to match client expectations
     const repos = userRepos.map((ur) => ({
       id: ur.id,
+      globalRepoId: ur.globalRepoId,
       owner: ur.globalRepo.owner,
       name: ur.globalRepo.name,
       url: ur.globalRepo.url,
@@ -474,6 +475,7 @@ router.post('/', async (req: Request, res: Response) => {
     const repoIdStr = `${userRepo.globalRepo.owner}/${userRepo.globalRepo.name}`;
     res.json({
       id: userRepo.id,
+      globalRepoId: userRepo.globalRepoId,
       owner: userRepo.globalRepo.owner,
       name: userRepo.globalRepo.name,
       url: userRepo.globalRepo.url,
@@ -526,6 +528,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     const repoIdStr = `${userRepo.globalRepo.owner}/${userRepo.globalRepo.name}`;
     res.json({
       id: userRepo.id,
+      globalRepoId: userRepo.globalRepo.id,
       owner: userRepo.globalRepo.owner,
       name: userRepo.globalRepo.name,
       url: userRepo.globalRepo.url,
@@ -576,6 +579,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     res.json({
       id: updated!.id,
+      globalRepoId: updated!.globalRepo.id,
       owner: updated!.globalRepo.owner,
       name: updated!.globalRepo.name,
       url: updated!.globalRepo.url,
@@ -699,6 +703,7 @@ router.post('/:id/refresh', async (req: Request, res: Response) => {
     // Format response
     res.json({
       id: refreshedRepo.id,
+      globalRepoId: refreshedRepo.globalRepo.id,
       owner: refreshedRepo.globalRepo.owner,
       name: refreshedRepo.globalRepo.name,
       url: refreshedRepo.globalRepo.url,
@@ -978,6 +983,7 @@ router.get('/feed/all', async (req: Request, res: Response) => {
     // Format response
     const repos = userRepos.map((ur) => ({
       id: ur.id,
+      globalRepoId: ur.globalRepoId,
       owner: ur.globalRepo.owner,
       name: ur.globalRepo.name,
       url: ur.globalRepo.url,
