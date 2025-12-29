@@ -38,6 +38,7 @@ export interface Update {
   category: Category;
   significance: Significance;
   date: string;
+  createdAt: string; // When indexed - used for "new" badge
   prCount: number;
   commitCount: number;
   prs: PRInfo[];  // For drill-down

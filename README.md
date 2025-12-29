@@ -96,7 +96,7 @@ Add these API keys to your server `.env` file:
 - [x] AI-generated release summaries
 - [x] Clickable release cards with markdown modal
 - [x] Repo avatars in sidebar
-- [ ] Auto-mark items as seen on scroll + unread count badge ([spec](docs/auto-mark-seen-on-scroll.md))
+- [x] Session-based "new" badges (items marked new based on when indexed, persists within browser session)
 - [ ] User profile page
 - [ ] Show API usage to users ([spec](docs/llm-usage-tracking.md))
 - [x] Suggest already indexed repos when adding

@@ -41,7 +41,7 @@ import MyReportsPage from './MyReportsPage';
 import { Plus, ChevronDown, LogOut, CheckCheck, FolderGit2, FileText, Infinity, Star, Rocket } from 'lucide-react';
 
 export default function App() {
-  const { user, isLoading: authLoading, logout, refetchUser } = useAuth();
+  const { user, isLoading: authLoading, logout } = useAuth();
 
   const [repos, setRepos] = useState<Repo[]>([]);
   const [updates, setUpdates] = useState<Update[]>([]);
@@ -64,6 +64,11 @@ export default function App() {
 
   // Polling interval ref for report generation
   const reportPollingRef = useRef<number | null>(null);
+
+  // Session-based lastSeenAt: snapshot user's lastSeenAt at session start
+  // so "new" badges persist while navigating during the session
+  const [sessionLastSeenAt, setSessionLastSeenAt] = useState<string | null>(null);
+  const hasInitializedLastSeen = useRef(false);
 
   const [filterSignificance, setFilterSignificance] = useState<Significance[]>(
     user?.visibleSignificance as Significance[] || ['major', 'minor']
@@ -99,6 +104,29 @@ export default function App() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Initialize session-based lastSeenAt on first load
+  useEffect(() => {
+    if (!user || hasInitializedLastSeen.current) return;
+
+    const storageKey = `lastSeenAt-${user.id}`;
+    const storedValue = sessionStorage.getItem(storageKey);
+
+    if (storedValue) {
+      // Already have a snapshot for this session
+      setSessionLastSeenAt(storedValue);
+    } else {
+      // First load this session: snapshot current lastSeenAt
+      const snapshot = user.lastSeenAt ?? new Date(0).toISOString();
+      sessionStorage.setItem(storageKey, snapshot);
+      setSessionLastSeenAt(snapshot);
+
+      // Update server's lastSeenAt to now (fire and forget)
+      markAsSeen().catch((err) => console.error('Failed to mark as seen:', err));
+    }
+
+    hasInitializedLastSeen.current = true;
+  }, [user]);
 
   useEffect(() => {
     if (user?.visibleSignificance) {
@@ -256,15 +284,6 @@ export default function App() {
     }
   };
 
-  const handleMarkAsSeen = async () => {
-    try {
-      await markAsSeen();
-      await refetchUser();
-    } catch (err) {
-      console.error('Failed to mark as seen:', err);
-    }
-  };
-
   const handleFetchRecent = useCallback(async () => {
     if (!selectedRepoId) return { newCount: 0, totalFetched: 0, lastActivityAt: null };
 
@@ -373,13 +392,13 @@ export default function App() {
   }, [selectedReportId, reports]);
 
   const hasNewItems = useMemo(() => {
-    if (!user?.lastSeenAt) return updates.length > 0 || releases.length > 0;
-    const lastSeen = new Date(user.lastSeenAt);
+    if (!sessionLastSeenAt) return updates.length > 0 || releases.length > 0;
+    const lastSeen = new Date(sessionLastSeenAt);
     return (
-      updates.some((u) => new Date(u.date) > lastSeen) ||
+      updates.some((u) => new Date(u.createdAt) > lastSeen) ||
       releases.some((r) => new Date(r.publishedAt) > lastSeen)
     );
-  }, [updates, releases, user?.lastSeenAt]);
+  }, [updates, releases, sessionLastSeenAt]);
 
   const filteredFeed = useMemo(() => {
     if (viewMode === 'releases') {
@@ -706,7 +725,7 @@ export default function App() {
                   onToggleStar={handleToggleStar}
                   onReleaseClick={(release, repoName) => setSelectedRelease({ release, repoName })}
                   repos={repos}
-                  lastSeenAt={user.lastSeenAt}
+                  lastSeenAt={sessionLastSeenAt}
                   selectedRepo={selectedRepoId ? repos.find((r) => r.id === selectedRepoId) : null}
                   onFetchRecent={selectedRepoId ? handleFetchRecent : undefined}
                 />

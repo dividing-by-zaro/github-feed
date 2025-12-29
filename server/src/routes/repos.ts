@@ -50,6 +50,7 @@ function formatUpdate(
     category: string;
     significance: string;
     date: Date;
+    createdAt: Date;
     prCount: number;
     commitCount: number;
     prs: Array<{
@@ -72,6 +73,7 @@ function formatUpdate(
     category: u.category as Update['category'],
     significance: u.significance as Update['significance'],
     date: u.date.toISOString(),
+    createdAt: u.createdAt.toISOString(),
     prCount: u.prCount,
     commitCount: u.commitCount,
     prs: u.prs.map(buildPRInfo),
@@ -885,6 +887,7 @@ router.post('/:id/fetch-recent', async (req: Request, res: Response) => {
           category: update.category as Update['category'],
           significance: update.significance as Update['significance'],
           date: update.date.toISOString(),
+          createdAt: update.createdAt.toISOString(),
           prCount: update.prCount,
           commitCount: update.commitCount,
           prs: createdPRs.map((pr) => buildPRInfo(pr)),

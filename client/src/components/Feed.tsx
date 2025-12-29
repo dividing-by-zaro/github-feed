@@ -33,9 +33,13 @@ export default function Feed({
   const [fetchResult, setFetchResult] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [lastActivityAt, setLastActivityAt] = useState<string | null>(null);
 
-  const isNew = (dateStr: string) => {
+  // Check if item is "new" based on when it was indexed (createdAt), not activity date
+  const isNew = (item: { createdAt?: string; publishedAt?: string }) => {
     if (!lastSeenAt) return true;
-    return new Date(dateStr) > new Date(lastSeenAt);
+    // Use createdAt for updates, publishedAt for releases (releases don't have createdAt yet)
+    const indexedAt = item.createdAt ?? item.publishedAt;
+    if (!indexedAt) return false;
+    return new Date(indexedAt) > new Date(lastSeenAt);
   };
 
   const handleFetchRecent = async () => {
@@ -203,7 +207,7 @@ export default function Feed({
       const repo = getRepo(item.repoId);
       const repoName = repo?.displayName || repo?.name || item.repoId;
       const repoColor = repo?.customColor || getRepoColor(item.repoId);
-      const itemIsNew = isNew(getItemDate(item));
+      const itemIsNew = isNew(item);
 
       return (
         <div
@@ -265,7 +269,7 @@ export default function Feed({
         customColor={repo?.customColor ?? undefined}
         starredIds={starredIds}
         onToggleStar={onToggleStar}
-        isNew={isNew(getItemDate(item))}
+        isNew={isNew(item)}
       />
     );
   };
