@@ -126,20 +126,9 @@ export class ReportGenerator {
 
     await onProgress(`Analyzing ${updates.length} updates...`);
 
-    // Check if we should use release-based approach
-    const releases = await this.checkForReleases(globalRepoId, startDate, endDate);
-
-    let themes: ThemeGroupingResult['themes'];
-
-    if (releases.length >= 2) {
-      // Use release-based grouping
-      await onProgress('Organizing by releases...');
-      themes = this.groupByReleases(updates, releases);
-    } else {
-      // Phase 2: Group updates into themes using LLM
-      await onProgress('Grouping features...');
-      themes = await this.groupIntoThemes(updates, repo);
-    }
+    // Phase 2: Group updates into semantic themes using LLM
+    await onProgress('Grouping features...');
+    const themes = await this.groupIntoThemes(updates, repo);
 
     // Phase 3: Generate detailed summaries for each theme (parallel)
     await onProgress('Generating summaries...');
@@ -206,96 +195,6 @@ export class ReportGenerator {
     });
 
     return updates;
-  }
-
-  /**
-   * Check for releases in the date range
-   */
-  private async checkForReleases(
-    globalRepoId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<Array<{ tagName: string; publishedAt: Date | null }>> {
-    return prisma.globalRelease.findMany({
-      where: {
-        globalRepoId,
-        publishedAt: {
-          gte: startDate,
-          lte: endDate,
-        },
-        isClusterHead: true, // Only get cluster heads
-      },
-      select: {
-        tagName: true,
-        publishedAt: true,
-      },
-      orderBy: { publishedAt: 'desc' },
-    });
-  }
-
-  /**
-   * Group updates by releases (when releases exist)
-   */
-  private groupByReleases(
-    updates: UpdateWithPRs[],
-    releases: Array<{ tagName: string; publishedAt: Date | null }>
-  ): ThemeGroupingResult['themes'] {
-    const themes: ThemeGroupingResult['themes'] = [];
-
-    // Sort releases by date
-    const sortedReleases = [...releases].sort((a, b) => {
-      const dateA = a.publishedAt?.getTime() || 0;
-      const dateB = b.publishedAt?.getTime() || 0;
-      return dateB - dateA;
-    });
-
-    // Group updates by release
-    for (let i = 0; i < sortedReleases.length; i++) {
-      const release = sortedReleases[i];
-      const nextRelease = sortedReleases[i + 1];
-
-      const releaseDate = release.publishedAt?.getTime() || 0;
-      const prevReleaseDate = nextRelease?.publishedAt?.getTime() || 0;
-
-      // Find updates between this release and the previous one
-      const releaseUpdates = updates.filter((u) => {
-        const updateDate = u.date.getTime();
-        return updateDate <= releaseDate && updateDate > prevReleaseDate;
-      });
-
-      if (releaseUpdates.length > 0) {
-        // Determine significance based on updates
-        const hasMaxor = releaseUpdates.some((u) => u.significance === 'major');
-        const hasMinor = releaseUpdates.some((u) => u.significance === 'minor');
-        const significance: Significance = hasMaxor ? 'major' : hasMinor ? 'minor' : 'patch';
-
-        themes.push({
-          name: `Release ${release.tagName}`,
-          significance,
-          updateIds: releaseUpdates.map((u) => u.id),
-          oneLineSummary: `Changes included in ${release.tagName}`,
-        });
-      }
-    }
-
-    // Handle updates not associated with any release
-    const assignedIds = new Set(themes.flatMap((t) => t.updateIds));
-    const unassignedUpdates = updates.filter((u) => !assignedIds.has(u.id));
-
-    if (unassignedUpdates.length > 0) {
-      const hasMaxor = unassignedUpdates.some((u) => u.significance === 'major');
-      const hasMinor = unassignedUpdates.some((u) => u.significance === 'minor');
-      const significance: Significance = hasMaxor ? 'major' : hasMinor ? 'minor' : 'patch';
-
-      themes.push({
-        name: 'Unreleased Changes',
-        significance,
-        updateIds: unassignedUpdates.map((u) => u.id),
-        oneLineSummary: 'Changes not yet included in a release',
-      });
-    }
-
-    return themes;
   }
 
   /**
@@ -487,21 +386,30 @@ Return themes with:
       })
       .join('\n');
 
-    const prompt = `Write a detailed summary (2-4 paragraphs) for this theme from ${repo.owner}/${repo.name}.
+    const prompt = `Summarize this theme from ${repo.owner}/${repo.name} as scannable bullet points.
 
 Theme: ${theme.name}
-One-line summary: ${theme.oneLineSummary}
 
-Updates in this theme:
+Updates:
 ${updateDescriptions}
 
-Guidelines:
-- Write in a professional, technical tone suitable for a stakeholder report
-- Focus on what users/developers can now do or what problems were solved
-- Mention specific capabilities or improvements
-- Be concise but thorough - this is a key section of the report
-- Do NOT use bullet points - write in paragraph form
-- Do NOT include PR numbers in the text`;
+FORMAT:
+- Use 3-6 bullet points
+- Bold **key terms, APIs, flags, or metrics** that a developer would search for
+- Cite PR numbers inline (e.g., "Added X (#123)")
+- Each bullet = one concrete change users will notice
+
+CONTENT RULES:
+- Only include changes that affect end users or developers using this project
+- Skip: docs updates, version bumps, internal refactors, test-only changes, dependency updates
+- Be specific: "**streaming responses** now supported" not "improved performance"
+- Include concrete details: config names, CLI flags, error messages, % improvements
+- No filler phrases ("This release includes", "We're excited to", "Various improvements")
+
+TONE:
+- Direct and technical - our audience is developers who want facts, not marketing
+- Lead with the what, not the why
+- If a bug was fixed, state what broke and what works now`;
 
     try {
       const response = await this.openai.chat.completions.create({
@@ -509,11 +417,11 @@ Guidelines:
         messages: [
           {
             role: 'system',
-            content: 'You are a technical writer creating clear, professional summaries of software changes.',
+            content: 'You write concise, technical changelogs for developers. No fluff, just facts.',
           },
           { role: 'user', content: prompt },
         ],
-        temperature: 0.3,
+        temperature: 0.2,
         response_format: {
           type: 'json_schema',
           json_schema: THEME_SUMMARY_SCHEMA,

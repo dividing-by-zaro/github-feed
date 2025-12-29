@@ -69,7 +69,7 @@ github-feed/
 - **Per-user settings**: Each user's repo subscription has custom color, display name, and significance filter (stored in `UserRepo`)
 - **Timeline view with date grouping**: Feed items grouped by date with sticky DateHeader components and GapIndicator showing time gaps between updates
 - **Tailwind CSS v4**: Uses `@theme inline` for custom color tokens and `@source` directive. Custom component classes (brutal-card, brutal-btn variants) defined in index.css
-- **Reports generation**: 3-phase LLM pipeline: (1) theme grouping, (2) parallel theme summaries, (3) executive summary. Background generation with polling for status updates. Uses releases as section boundaries when available.
+- **Reports generation**: 3-phase LLM pipeline: (1) semantic theme grouping, (2) parallel theme summaries as bullet points, (3) executive summary. Always uses LLM for semantic categorization. Background generation with polling.
 
 ## Database Schema
 

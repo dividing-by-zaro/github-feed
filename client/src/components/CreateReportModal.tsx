@@ -17,7 +17,7 @@ export default function CreateReportModal({
 }: CreateReportModalProps) {
   const [selectedRepoId, setSelectedRepoId] = useState('');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [error, setError] = useState<string | null>(null);
 
   // Get today and 3 months ago for date limits
