@@ -1,6 +1,17 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { X, Download, Trash2, ChevronDown, ChevronRight, ExternalLink, AlertCircle } from 'lucide-react';
 import type { Report, ReportSection, ReportTheme } from '../types';
+
+// Parse markdown-style bold (**text**) into React elements
+function renderWithBold(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+    }
+    return <Fragment key={i}>{part}</Fragment>;
+  });
+}
 
 interface ReportViewerProps {
   report: Report;
@@ -51,10 +62,10 @@ function ThemeCard({ theme, significance }: { theme: ReportTheme; significance: 
 
       {isExpanded && (
         <div className="p-4 bg-white space-y-4">
-          <div className="prose prose-sm max-w-none">
-            {theme.summary.split('\n\n').map((paragraph, i) => (
-              <p key={i} className="text-gray-700 leading-relaxed">
-                {paragraph}
+          <div className="space-y-1.5 text-sm text-gray-700">
+            {theme.summary.split('\n').filter(line => line.trim()).map((line, i) => (
+              <p key={i} className="leading-relaxed">
+                {renderWithBold(line)}
               </p>
             ))}
           </div>
@@ -215,7 +226,7 @@ export default function ReportViewer({
                 <div className="p-4 bg-lavender/20 rounded-xl border-2 border-lavender">
                   {content.executiveSummary.split('\n\n').map((paragraph, i) => (
                     <p key={i} className="text-gray-700 leading-relaxed mb-3 last:mb-0">
-                      {paragraph}
+                      {renderWithBold(paragraph)}
                     </p>
                   ))}
                 </div>

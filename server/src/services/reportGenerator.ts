@@ -214,23 +214,42 @@ export class ReportGenerator {
     const prompt = `You are analyzing ${updates.length} updates from ${repo.owner}/${repo.name}.
 ${repo.description ? `Repository: ${repo.description}` : ''}
 
-Group these updates into 3-8 high-level THEMES that represent the key changes.
+Group these updates into SPECIFIC themes based on what was actually built or fixed.
 
-Guidelines:
-- Each theme should represent a distinct area of change (e.g., "Authentication Improvements", "Performance Optimizations", "UI Enhancements")
-- Group related updates together even if they have different significance levels
-- The theme's significance should be the HIGHEST significance among its updates (major > minor > patch)
-- Every update must be assigned to exactly one theme
-- Theme names should be user-friendly and descriptive
+NAMING RULES:
+- Theme names MUST start with an action verb: "Add", "Fix", "Improve", "Remove", "Update", "Support"
+- Theme names MUST mention the specific feature, API, or system affected
+- Theme names should be narrow enough that only truly related changes belong together
+
+BAD NAMES (too vague):
+- "Authentication Improvements"
+- "UI Enhancements"
+- "Security Fixes"
+- "Performance Optimizations"
+- "Bug Fixes"
+
+GOOD NAMES:
+- "Add SSO support for Google and Okta"
+- "Add toast notifications for async operations"
+- "Add streaming response support for chat completions"
+- "Fix rate limiting for concurrent requests"
+- "Add dark mode toggle and theme persistence"
+- "Support custom validators in form inputs"
+
+GROUPING RULES:
+- Only group updates that are directly related to the SAME feature or fix
+- Don't group unrelated changes just because they're both "performance" or both "UI"
+- Prefer more themes (5-10) over fewer vague themes
+- If an update doesn't fit with others, give it its own theme
 
 Updates to analyze:
 ${updateDescriptions}
 
 Return themes with:
-- name: A clear, descriptive theme name (e.g., "Authentication & Security")
-- significance: The highest significance level among the theme's updates
+- name: Action-oriented, specific theme name (verb + what changed)
+- significance: The highest significance level among the theme's updates (major > minor > patch)
 - updateIds: Array of update IDs that belong to this theme
-- oneLineSummary: A single sentence summarizing the theme`;
+- oneLineSummary: A single sentence with concrete details about what changed`;
 
     try {
       const response = await this.openai.chat.completions.create({
@@ -504,21 +523,30 @@ TONE:
 
     const formatDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    const prompt = `Write an executive summary (2-3 paragraphs) for a report on ${repo.owner}/${repo.name}.
+    const prompt = `Write an executive summary for ${repo.owner}/${repo.name} covering ${formatDate(startDate)} to ${formatDate(endDate)}.
 ${repo.description ? `Repository: ${repo.description}` : ''}
 
-Report period: ${formatDate(startDate)} to ${formatDate(endDate)}
-
-Themes covered:
+Themes:
 ${themeSummaries}
 
-Guidelines:
-- Start with a high-level overview of what changed during this period
-- Highlight the most impactful changes (major themes)
-- Mention the breadth of improvements (number of themes, types of changes)
-- End with the overall significance/impact
-- Write in a professional tone suitable for stakeholders
-- Do NOT use bullet points - write in paragraph form`;
+STRUCTURE:
+1. **Impact verdict** (1 sentence): Was this period high-impact, moderate, low-impact, or quiet for end users?
+2. **Key changes** (2-4 sentences): What are the 1-3 most important things a user of this project should know? Bold the specific features, fixes, or APIs.
+3. **Activity context** (1-2 sentences): Was this a busy period (many PRs) or quiet? Was the work substantive (new features, critical fixes) or maintenance (deps, docs, minor tweaks)?
+
+CONTENT RULES:
+- Lead with what matters to someone USING this project, not maintaining it
+- If major bugs were fixed, call them out explicitly: "**Fixed:** long-standing issue where X would fail under Y"
+- Be specific: name features, APIs, error messages, not vague categories
+- Skip: internal refactors, test improvements, doc updates unless they indicate something user-facing
+
+TONE:
+- Direct, no filler ("This period saw...", "The team has been busy...", "We're excited to...")
+- Bold **key terms** a developer would ctrl+F for
+- Write for a technical audience who wants facts, not stakeholder marketing
+
+BAD: "This reporting period includes several important updates across multiple areas of the codebase, demonstrating continued investment in the platform."
+GOOD: "**High-impact period.** Added **streaming responses** for chat completions and fixed a **memory leak** affecting long-running connections. Busy month with 47 PRs, mostly substantive feature work."`;
 
     try {
       const response = await this.openai.chat.completions.create({
