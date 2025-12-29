@@ -1,7 +1,7 @@
 import { Infinity, Star, Rocket, Settings, FileText, Plus, Loader2, AlertCircle } from 'lucide-react';
 import type { Repo, Report } from '../types';
 
-type ViewMode = 'all' | 'starred' | 'releases' | 'my-repos';
+type ViewMode = 'all' | 'starred' | 'releases' | 'my-repos' | 'my-reports';
 
 interface SidebarProps {
   repos: Repo[];
@@ -31,7 +31,7 @@ export default function Sidebar({
   const isViewActive = (mode: ViewMode) => viewMode === mode && !selectedRepoId && !selectedReportId;
 
   return (
-    <aside className="w-64 bg-white border-r-3 border-black flex flex-col shrink-0 h-[calc(100vh-73px)] sticky top-[73px]">
+    <aside className="w-64 bg-white border-r-3 border-black flex flex-col shrink-0 h-screen sticky top-0">
       {/* Navigation */}
       <nav className="p-4 space-y-2 shrink-0">
         <button

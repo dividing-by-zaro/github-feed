@@ -37,7 +37,8 @@ import CreateReportModal from './CreateReportModal';
 import ReportViewer from './ReportViewer';
 import LoginPage from './LoginPage';
 import MyReposPage from './MyReposPage';
-import { Plus, ChevronDown, LogOut, CheckCheck, FolderGit2 } from 'lucide-react';
+import MyReportsPage from './MyReportsPage';
+import { Plus, ChevronDown, LogOut, CheckCheck, FolderGit2, FileText } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout, refetchUser } = useAuth();
@@ -51,7 +52,7 @@ export default function App() {
 
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'all' | 'starred' | 'releases' | 'my-repos'>('all');
+  const [viewMode, setViewMode] = useState<'all' | 'starred' | 'releases' | 'my-repos' | 'my-reports'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCreateReportModal, setShowCreateReportModal] = useState(false);
   const [repoSettingsTarget, setRepoSettingsTarget] = useState<Repo | null>(null);
@@ -493,10 +494,13 @@ export default function App() {
     <div className="min-h-screen bg-cream flex flex-col">
       {/* Header */}
       <header className="bg-white border-b-3 border-black px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">GitHub Curator</h1>
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="GitHub Curator" className="w-8 h-8" />
+          <h1 className="text-2xl font-bold tracking-tight">GitHub Curator</h1>
+        </div>
 
         <div className="flex items-center gap-3">
-          {hasNewItems && (
+          {/* {hasNewItems && (
             <button
               onClick={handleMarkAsSeen}
               className="brutal-btn brutal-btn-mint"
@@ -504,7 +508,7 @@ export default function App() {
               <CheckCheck size={16} />
               Mark all read
             </button>
-          )}
+          )} */}
 
           <button
             onClick={() => setShowAddModal(true)}
@@ -512,6 +516,14 @@ export default function App() {
           >
             <Plus size={16} />
             Add Repo
+          </button>
+
+          <button
+            onClick={() => setShowCreateReportModal(true)}
+            className="brutal-btn brutal-btn-mint"
+          >
+            <FileText size={16} />
+            Generate Report
           </button>
 
           {/* User Menu */}
@@ -539,17 +551,30 @@ export default function App() {
                   className="fixed inset-0 z-40"
                   onClick={() => setShowUserMenu(false)}
                 />
-                <div className="absolute right-0 mt-2 w-40 bg-white border-3 border-black rounded-lg shadow-brutal z-50 overflow-hidden animate-slide-down">
+                <div className="absolute right-0 mt-2 w-48 bg-white border-3 border-black rounded-lg shadow-brutal z-50 overflow-hidden animate-slide-down">
                   <button
                     onClick={() => {
                       setViewMode('my-repos');
                       setSelectedRepoId(null);
+                      setSelectedReportId(null);
                       setShowUserMenu(false);
                     }}
                     className="w-full px-4 py-3 text-left font-medium text-sm hover:bg-mint/20 flex items-center gap-2 transition-colors border-b border-black/10"
                   >
                     <FolderGit2 size={16} />
                     Manage Repos
+                  </button>
+                  <button
+                    onClick={() => {
+                      setViewMode('my-reports');
+                      setSelectedRepoId(null);
+                      setSelectedReportId(null);
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full px-4 py-3 text-left font-medium text-sm hover:bg-lavender/20 flex items-center gap-2 transition-colors border-b border-black/10"
+                  >
+                    <FileText size={16} />
+                    Manage Reports
                   </button>
                   <button
                     onClick={() => {
@@ -612,6 +637,15 @@ export default function App() {
               repos={repos}
               onOpenSettings={setRepoSettingsTarget}
               onDelete={handleRemoveRepo}
+            />
+          ) : viewMode === 'my-reports' ? (
+            <MyReportsPage
+              reports={reports}
+              onSelect={(reportId) => {
+                setSelectedReportId(reportId);
+                setViewMode('all');
+              }}
+              onDelete={handleDeleteReport}
             />
           ) : (
             <>

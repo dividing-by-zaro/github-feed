@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
-import type { Repo } from '../types';
-import { getRepoColor } from '../utils/colors';
-import { Trash2, ChevronDown } from 'lucide-react';
+import type { Report } from '../types';
+import { Trash2, ChevronDown, FileText, Loader2, AlertCircle } from 'lucide-react';
 
 type SortOption = 'date-desc' | 'date-asc' | 'alpha-asc' | 'alpha-desc';
 
@@ -12,55 +11,54 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'alpha-desc', label: 'Z → A' },
 ];
 
-interface MyReposPageProps {
-  repos: Repo[];
-  onOpenSettings: (repo: Repo) => void;
-  onDelete: (repoId: string) => void;
+interface MyReportsPageProps {
+  reports: Report[];
+  onSelect: (reportId: string) => void;
+  onDelete: (reportId: string) => void;
 }
 
-export default function MyReposPage({
-  repos,
-  onOpenSettings,
+export default function MyReportsPage({
+  reports,
+  onSelect,
   onDelete,
-}: MyReposPageProps) {
+}: MyReportsPageProps) {
   const [sortBy, setSortBy] = useState<SortOption>('date-desc');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const sortedRepos = useMemo(() => {
-    const sorted = [...repos];
+  const sortedReports = useMemo(() => {
+    const sorted = [...reports];
     switch (sortBy) {
       case 'date-desc':
         return sorted.sort((a, b) => {
-          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
           return dateB - dateA;
         });
       case 'date-asc':
         return sorted.sort((a, b) => {
-          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
           return dateA - dateB;
         });
       case 'alpha-asc':
         return sorted.sort((a, b) => {
-          const nameA = (a.displayName || `${a.owner}/${a.name}`).toLowerCase();
-          const nameB = (b.displayName || `${b.owner}/${b.name}`).toLowerCase();
+          const nameA = a.repoName.toLowerCase();
+          const nameB = b.repoName.toLowerCase();
           return nameA.localeCompare(nameB);
         });
       case 'alpha-desc':
         return sorted.sort((a, b) => {
-          const nameA = (a.displayName || `${a.owner}/${a.name}`).toLowerCase();
-          const nameB = (b.displayName || `${b.owner}/${b.name}`).toLowerCase();
+          const nameA = a.repoName.toLowerCase();
+          const nameB = b.repoName.toLowerCase();
           return nameB.localeCompare(nameA);
         });
       default:
         return sorted;
     }
-  }, [repos, sortBy]);
+  }, [reports, sortBy]);
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Unknown date';
+  const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -69,14 +67,18 @@ export default function MyReposPage({
     });
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, repoId: string) => {
-    e.stopPropagation();
-    setDeleteConfirmId(repoId);
+  const formatDateRange = (startDate: string, endDate: string) => {
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
   };
 
-  const handleConfirmDelete = (e: React.MouseEvent, repoId: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, reportId: string) => {
     e.stopPropagation();
-    onDelete(repoId);
+    setDeleteConfirmId(reportId);
+  };
+
+  const handleConfirmDelete = (e: React.MouseEvent, reportId: string) => {
+    e.stopPropagation();
+    onDelete(reportId);
     setDeleteConfirmId(null);
   };
 
@@ -92,9 +94,9 @@ export default function MyReposPage({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold flex items-center gap-3">
-          Manage Repos
-          <span className="px-2.5 py-0.5 text-lg font-semibold bg-yellow border-2 border-black rounded-full">
-            {repos.length}
+          Manage Reports
+          <span className="px-2.5 py-0.5 text-lg font-semibold bg-mint border-2 border-black rounded-full">
+            {reports.length}
           </span>
         </h1>
 
@@ -123,7 +125,7 @@ export default function MyReposPage({
                       setShowSortDropdown(false);
                     }}
                     className={`w-full px-4 py-2.5 text-left text-sm font-medium hover:bg-cream transition-colors ${
-                      sortBy === option.value ? 'bg-mint/30' : ''
+                      sortBy === option.value ? 'bg-lavender/30' : ''
                     }`}
                   >
                     {option.label}
@@ -135,61 +137,64 @@ export default function MyReposPage({
         </div>
       </div>
 
-      {/* Repos List */}
-      {repos.length === 0 ? (
+      {/* Reports List */}
+      {reports.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-gray-500 font-medium">No repos yet</p>
-          <p className="text-gray-300 text-sm mt-1">Add a repo to get started</p>
+          <p className="text-gray-500 font-medium">No reports yet</p>
+          <p className="text-gray-300 text-sm mt-1">Generate a report to get started</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {sortedRepos.map((repo) => {
-            const displayName = repo.displayName || repo.name;
-            const fullName = `${repo.owner}/${repo.name}`;
-            const showSubtitle = repo.displayName && repo.displayName !== repo.name;
-            const color = repo.customColor || getRepoColor(repo.id);
+          {sortedReports.map((report) => {
+            const isGenerating = report.status === 'generating' || report.status === 'pending';
+            const isFailed = report.status === 'failed';
 
             return (
               <div
-                key={repo.id}
-                className="brutal-card p-4 flex items-center gap-4 cursor-pointer hover:bg-cream/50 transition-colors"
-                onClick={() => onOpenSettings(repo)}
+                key={report.id}
+                className={`brutal-card p-4 flex items-center gap-4 transition-colors ${
+                  isGenerating ? 'opacity-60' : 'cursor-pointer hover:bg-cream/50'
+                }`}
+                onClick={() => !isGenerating && onSelect(report.id)}
               >
-                {/* Repo avatar */}
-                {repo.avatarUrl ? (
-                  <img
-                    src={repo.avatarUrl}
-                    alt=""
-                    className="w-10 h-10 rounded-lg border-2 border-black flex-shrink-0"
-                  />
-                ) : (
-                  <div
-                    className="w-10 h-10 rounded-lg border-2 border-black flex-shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-                )}
+                {/* Report icon */}
+                <div className={`w-10 h-10 rounded-lg border-2 border-black flex-shrink-0 flex items-center justify-center ${
+                  isFailed ? 'bg-coral/30' : isGenerating ? 'bg-yellow/30' : 'bg-lavender/50'
+                }`}>
+                  {isGenerating ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : isFailed ? (
+                    <AlertCircle size={18} />
+                  ) : (
+                    <FileText size={18} />
+                  )}
+                </div>
 
-                {/* Repo info */}
+                {/* Report info */}
                 <div className="flex-1 min-w-0">
                   <div className="font-display font-semibold text-base truncate">
-                    {displayName}
+                    {report.repoName}
                   </div>
-                  {showSubtitle && (
-                    <div className="text-sm text-gray-500 font-mono truncate">
-                      {fullName}
-                    </div>
-                  )}
+                  <div className="text-sm text-gray-500 truncate">
+                    {isGenerating ? (
+                      <span className="text-yellow-600">{report.progress || 'Generating...'}</span>
+                    ) : isFailed ? (
+                      <span className="text-red-600">Failed to generate</span>
+                    ) : (
+                      formatDateRange(report.startDate, report.endDate)
+                    )}
+                  </div>
                   <div className="text-xs text-gray-300 mt-1">
-                    Added {formatDate(repo.createdAt)}
+                    Created {formatDate(report.createdAt)}
                   </div>
                 </div>
 
                 {/* Delete button or confirmation */}
-                {deleteConfirmId === repo.id ? (
+                {deleteConfirmId === report.id ? (
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-sm font-medium">Really delete?</span>
                     <button
-                      onClick={(e) => handleConfirmDelete(e, repo.id)}
+                      onClick={(e) => handleConfirmDelete(e, report.id)}
                       className="px-3 py-1.5 text-sm font-semibold bg-coral border-2 border-black rounded-lg hover:bg-coral-dark transition-colors"
                     >
                       Yes
@@ -203,7 +208,7 @@ export default function MyReposPage({
                   </div>
                 ) : (
                   <button
-                    onClick={(e) => handleDeleteClick(e, repo.id)}
+                    onClick={(e) => handleDeleteClick(e, report.id)}
                     className="w-9 h-9 flex items-center justify-center rounded-lg border-2 border-black/20 hover:border-coral hover:bg-coral/20 transition-colors flex-shrink-0"
                     title="Delete"
                   >
