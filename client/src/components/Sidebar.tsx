@@ -1,16 +1,12 @@
-import { Infinity, Star, Rocket, Settings, FileText, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Settings, FileText, Plus, Loader2, AlertCircle, LayoutList } from 'lucide-react';
 import type { Repo, Report } from '../types';
-
-type ViewMode = 'all' | 'starred' | 'releases' | 'my-repos' | 'my-reports';
 
 interface SidebarProps {
   repos: Repo[];
   reports: Report[];
   selectedRepoId: string | null;
   selectedReportId: string | null;
-  viewMode: ViewMode;
   onSelectRepo: (repoId: string | null) => void;
-  onSelectView: (mode: ViewMode) => void;
   onOpenRepoSettings: (repo: Repo) => void;
   onSelectReport: (reportId: string) => void;
   onCreateReport: () => void;
@@ -21,53 +17,29 @@ export default function Sidebar({
   reports,
   selectedRepoId,
   selectedReportId,
-  viewMode,
   onSelectRepo,
-  onSelectView,
   onOpenRepoSettings,
   onSelectReport,
   onCreateReport,
 }: SidebarProps) {
-  const isViewActive = (mode: ViewMode) => viewMode === mode && !selectedRepoId && !selectedReportId;
+  const isFeedActive = !selectedRepoId && !selectedReportId;
 
   return (
     <aside className="w-64 bg-white border-r-3 border-black flex flex-col shrink-0 h-screen sticky top-0">
-      {/* Navigation */}
-      <nav className="p-4 space-y-2 shrink-0">
+      {/* Feed Button */}
+      <div className="p-4 shrink-0">
         <button
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-display font-medium text-sm transition-all ${
-            isViewActive('all')
+            isFeedActive
               ? 'bg-yellow border-2 border-black shadow-brutal-sm'
               : 'hover:bg-cream border-2 border-transparent'
           }`}
-          onClick={() => onSelectView('all')}
+          onClick={() => onSelectRepo(null)}
         >
-          <Infinity size={18} />
-          All Repos
+          <LayoutList size={18} />
+          Feed
         </button>
-        <button
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-display font-medium text-sm transition-all ${
-            isViewActive('starred')
-              ? 'bg-pink border-2 border-black shadow-brutal-sm'
-              : 'hover:bg-cream border-2 border-transparent'
-          }`}
-          onClick={() => onSelectView('starred')}
-        >
-          <Star size={18} />
-          Starred
-        </button>
-        <button
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-display font-medium text-sm transition-all ${
-            isViewActive('releases')
-              ? 'bg-mint border-2 border-black shadow-brutal-sm'
-              : 'hover:bg-cream border-2 border-transparent'
-          }`}
-          onClick={() => onSelectView('releases')}
-        >
-          <Rocket size={18} />
-          Releases
-        </button>
-      </nav>
+      </div>
 
       {/* Repos Section - takes 60% of remaining space */}
       <div className="flex-[3] border-t-2 border-black/10 overflow-hidden flex flex-col min-h-0">

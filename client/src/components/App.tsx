@@ -38,7 +38,7 @@ import ReportViewer from './ReportViewer';
 import LoginPage from './LoginPage';
 import MyReposPage from './MyReposPage';
 import MyReportsPage from './MyReportsPage';
-import { Plus, ChevronDown, LogOut, CheckCheck, FolderGit2, FileText } from 'lucide-react';
+import { Plus, ChevronDown, LogOut, CheckCheck, FolderGit2, FileText, Infinity, Star, Rocket } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout, refetchUser } = useAuth();
@@ -500,16 +500,6 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* {hasNewItems && (
-            <button
-              onClick={handleMarkAsSeen}
-              className="brutal-btn brutal-btn-mint"
-            >
-              <CheckCheck size={16} />
-              Mark all read
-            </button>
-          )} */}
-
           <button
             onClick={() => setShowAddModal(true)}
             className="brutal-btn brutal-btn-yellow"
@@ -600,16 +590,10 @@ export default function App() {
           reports={reports}
           selectedRepoId={selectedRepoId}
           selectedReportId={selectedReportId}
-          viewMode={viewMode}
           onSelectRepo={(repoId) => {
             setSelectedRepoId(repoId);
             setSelectedReportId(null);
             if (repoId) setViewMode('all');
-          }}
-          onSelectView={(mode) => {
-            setViewMode(mode);
-            setSelectedRepoId(null);
-            setSelectedReportId(null);
           }}
           onOpenRepoSettings={setRepoSettingsTarget}
           onSelectReport={(reportId) => {
@@ -650,29 +634,58 @@ export default function App() {
           ) : (
             <>
               {/* Page Header */}
-              <div className="flex items-center justify-between mb-6 gap-4">
-                <h1 className="text-3xl font-bold">
-                  {selectedRepoId
-                    ? repos.find((r) => r.id === selectedRepoId)?.displayName ||
+              <div className="mb-6">
+                {selectedRepoId && (
+                  <h1 className="text-3xl font-bold mb-4">
+                    {repos.find((r) => r.id === selectedRepoId)?.displayName ||
                       repos.find((r) => r.id === selectedRepoId)?.name ||
-                      'Repository'
-                    : viewMode === 'starred'
-                      ? 'Starred'
-                      : viewMode === 'releases'
-                        ? 'Releases'
-                        : 'All Repos'}
-                </h1>
-
-                {!selectedRepoId && viewMode !== 'releases' && (
-                  <FilterBar
-                    selectedSignificance={filterSignificance}
-                    selectedCategories={filterCategories}
-                    showReleases={showReleases}
-                    onSignificanceChange={setFilterSignificance}
-                    onCategoriesChange={setFilterCategories}
-                    onShowReleasesChange={setShowReleases}
-                  />
+                      'Repository'}
+                  </h1>
                 )}
+
+                <div className="flex items-center justify-between gap-4">
+                  {/* View Mode Selector */}
+                  {!selectedRepoId && (
+                    <div className="flex items-center bg-cream border-2 border-black rounded-full p-1.5">
+                      {[
+                        { mode: 'all' as const, icon: Infinity, label: 'All Repos' },
+                        { mode: 'starred' as const, icon: Star, label: 'Starred' },
+                        { mode: 'releases' as const, icon: Rocket, label: 'Releases' },
+                      ].map(({ mode, icon: Icon, label }) => {
+                        const isActive = viewMode === mode && !selectedRepoId && !selectedReportId;
+                        return (
+                          <button
+                            key={mode}
+                            onClick={() => {
+                              setViewMode(mode);
+                              setSelectedRepoId(null);
+                              setSelectedReportId(null);
+                            }}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-base transition-all duration-200 ease-out ${
+                              isActive
+                                ? 'bg-black text-white'
+                                : 'text-gray-500 hover:text-black'
+                            }`}
+                          >
+                            <Icon size={18} className="shrink-0" />
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {!selectedRepoId && viewMode !== 'releases' && (
+                    <FilterBar
+                      selectedSignificance={filterSignificance}
+                      selectedCategories={filterCategories}
+                      showReleases={showReleases}
+                      onSignificanceChange={setFilterSignificance}
+                      onCategoriesChange={setFilterCategories}
+                      onShowReleasesChange={setShowReleases}
+                    />
+                  )}
+                </div>
               </div>
 
               {isLoading || dataLoading ? (

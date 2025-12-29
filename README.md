@@ -30,7 +30,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Release Modal** | Click releases to view full rendered markdown notes |
 | **New Badges** | Highlights unseen changes since your last visit |
 | **Timeline View** | Date-grouped feed with sticky headers and gap indicators showing time between updates |
-| **Page Title** | Dynamic title showing current view with inline filters |
+| **View Mode Selector** | Pill-shaped toggle to switch between All Repos, Starred, and Releases views |
 | **User Menu** | Profile picture and name with dropdown for Manage Repos, Manage Reports, and logout |
 | **Manage Repos** | View all subscribed repos, sort by date or name, delete with confirmation |
 | **Manage Reports** | View all generated reports, sort by date or name, click to view, delete with confirmation |
