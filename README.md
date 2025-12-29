@@ -36,7 +36,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Manage Reports** | View all generated reports, sort by date or name, click to view, delete with confirmation |
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
-| **Load Older Updates** | Paginate backwards through PR history |
+| **Load Older Updates** | Paginate backwards through PR history with clear "end of indexed" indicator |
 | **Re-index Repo** | Delete cached data and regenerate AI summaries from scratch |
 | **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
 | **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |

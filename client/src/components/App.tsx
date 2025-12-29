@@ -302,19 +302,23 @@ export default function App() {
   };
 
   const handleFetchRecent = useCallback(async () => {
-    if (!selectedRepoId) return { newCount: 0, totalFetched: 0, lastActivityAt: null };
+    if (!selectedRepoId) return;
 
-    const result = await fetchRecentUpdates(selectedRepoId);
+    try {
+      // Call API - returns immediately, runs in background
+      await fetchRecentUpdates(selectedRepoId);
 
-    if (result.newUpdates.length > 0) {
-      setUpdates((prev) => [...prev, ...result.newUpdates]);
+      // Update local repo state to trigger polling
+      setRepos((prev) =>
+        prev.map((r) =>
+          r.id === selectedRepoId
+            ? { ...r, status: 'pending' as const, progress: 'Starting...' }
+            : r
+        )
+      );
+    } catch (err) {
+      console.error('Failed to start fetching older updates:', err);
     }
-
-    return {
-      newCount: result.newPRsClassified,
-      totalFetched: result.totalPRsFetched,
-      lastActivityAt: result.lastActivityAt,
-    };
   }, [selectedRepoId]);
 
   // ============ REPORT HANDLERS ============

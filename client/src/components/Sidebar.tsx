@@ -69,7 +69,6 @@ export default function Sidebar({
                   <button
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
                     onClick={() => onSelectRepo(repo.id)}
-                    disabled={isIndexing}
                   >
                     {isIndexing ? (
                       <div className="w-8 h-8 rounded-md border-2 border-black shrink-0 flex items-center justify-center bg-yellow/30">

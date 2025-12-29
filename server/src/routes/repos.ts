@@ -366,6 +366,183 @@ async function indexRepoInBackground(
   }
 }
 
+// Background function for fetching older PRs
+async function fetchOlderInBackground(userRepoId: string, globalRepoId: string) {
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  const githubToken = process.env.GITHUB_TOKEN;
+
+  if (!openaiApiKey) {
+    await prisma.userRepo.update({
+      where: { id: userRepoId },
+      data: { status: 'failed', error: 'OpenAI API key not configured', progress: null },
+    });
+    return;
+  }
+
+  try {
+    // Update status to indexing
+    await prisma.userRepo.update({
+      where: { id: userRepoId },
+      data: { status: 'indexing', progress: 'Fetching older PRs...', error: null },
+    });
+
+    const globalRepo = await prisma.globalRepo.findUnique({
+      where: { id: globalRepoId },
+    });
+
+    if (!globalRepo) {
+      throw new Error('Global repo not found');
+    }
+
+    const { owner, name } = globalRepo;
+    const repoIdStr = `${owner}/${name}`;
+    const github = new GitHubService(githubToken || undefined);
+    const classifier = new ClassifierService(openaiApiKey);
+
+    console.log(`Background: Fetching older PRs for ${repoIdStr}`);
+
+    // Get repo info
+    const repoInfo = await github.getRepoInfo(owner, name);
+
+    // Find the oldest PR we have
+    const oldestPR = await prisma.globalPR.findFirst({
+      where: { globalRepoId: globalRepo.id },
+      orderBy: { mergedAt: 'asc' },
+      select: { mergedAt: true },
+    });
+
+    const beforeDate = oldestPR?.mergedAt ?? new Date();
+
+    // Fetch older PRs
+    await prisma.userRepo.update({
+      where: { id: userRepoId },
+      data: { progress: 'Searching for older PRs...' },
+    });
+
+    const prs = await github.getOlderMergedPRs(owner, name, beforeDate, 10);
+    console.log(`Found ${prs.length} older merged PRs`);
+
+    // Get existing PR numbers
+    const existingPRNumbers = new Set(
+      (
+        await prisma.globalPR.findMany({
+          where: { globalRepoId: globalRepo.id },
+          select: { prNumber: true },
+        })
+      ).map((p) => p.prNumber)
+    );
+
+    const newPRs = prs.filter((pr) => !existingPRNumbers.has(pr.number));
+    console.log(`${newPRs.length} new PRs to process`);
+
+    if (newPRs.length > 0) {
+      // Group PRs
+      await prisma.userRepo.update({
+        where: { id: userRepoId },
+        data: { progress: `Grouping ${newPRs.length} PRs...` },
+      });
+
+      const grouping = await classifier.groupPRs(newPRs, repoInfo);
+
+      // Summarize groups
+      await prisma.userRepo.update({
+        where: { id: userRepoId },
+        data: { progress: `Summarizing ${grouping.groups.length} updates...` },
+      });
+
+      const summaries = await classifier.summarizeAllGroups(grouping, newPRs, repoInfo);
+
+      const prsById = new Map(newPRs.map((pr) => [pr.number, pr]));
+
+      for (const group of grouping.groups) {
+        const key = group.prNumbers.sort().join('-');
+        const summary = summaries.get(key);
+        if (!summary) continue;
+
+        const groupPRs = group.prNumbers
+          .map((n) => prsById.get(n))
+          .filter((p): p is PRData => p !== undefined);
+
+        if (groupPRs.length === 0) continue;
+
+        const latestDate = new Date(
+          Math.max(...groupPRs.map((p) => new Date(p.mergedAt).getTime()))
+        );
+        const totalCommits = groupPRs.reduce((sum, p) => sum + p.commits.length, 0);
+
+        // Create the Update
+        const update = await prisma.globalUpdate.create({
+          data: {
+            globalRepoId: globalRepo.id,
+            title: summary.title,
+            summary: summary.summary,
+            category: summary.category,
+            significance: summary.significance,
+            date: latestDate,
+            prCount: groupPRs.length,
+            commitCount: totalCommits,
+          },
+        });
+
+        // Create GlobalPRs
+        await Promise.all(
+          groupPRs.map((pr) =>
+            prisma.globalPR.upsert({
+              where: {
+                globalRepoId_prNumber: {
+                  globalRepoId: globalRepo.id,
+                  prNumber: pr.number,
+                },
+              },
+              update: { updateId: update.id },
+              create: {
+                globalRepoId: globalRepo.id,
+                updateId: update.id,
+                prNumber: pr.number,
+                title: pr.title,
+                body: pr.body,
+                url: pr.url,
+                mergedAt: new Date(pr.mergedAt),
+                author: pr.author,
+                labels: pr.labels ?? [],
+                commits: pr.commits.map((c) => ({
+                  sha: c.sha,
+                  message: c.message,
+                  url: c.url,
+                })),
+              },
+            })
+          )
+        );
+      }
+    }
+
+    // Update lastFetchedAt
+    await prisma.globalRepo.update({
+      where: { id: globalRepo.id },
+      data: { lastFetchedAt: new Date() },
+    });
+
+    // Mark as completed
+    await prisma.userRepo.update({
+      where: { id: userRepoId },
+      data: { status: 'completed', progress: null, error: null },
+    });
+
+    console.log(`Background: Finished fetching older PRs for ${repoIdStr}`);
+  } catch (error) {
+    console.error(`Background fetch older failed for UserRepo ${userRepoId}:`, error);
+    await prisma.userRepo.update({
+      where: { id: userRepoId },
+      data: {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        progress: null,
+      },
+    });
+  }
+}
+
 // ===== Authenticated Routes =====
 router.use(requireAuth);
 
@@ -803,20 +980,11 @@ router.post('/:id/refresh', async (req: Request, res: Response) => {
   }
 });
 
-// Fetch older updates for a repo (paginate backwards from oldest known PR)
+// Fetch older updates for a repo - returns immediately, runs in background
 router.post('/:id/fetch-recent', async (req: Request, res: Response) => {
   try {
     const user = getUser(req);
     const { id } = req.params;
-
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    const githubToken = process.env.GITHUB_TOKEN;
-
-    if (!openaiApiKey) {
-      return res
-        .status(500)
-        .json({ error: 'OpenAI API key not configured on server' });
-    }
 
     // Find the user's repo
     const userRepo = await prisma.userRepo.findFirst({
@@ -828,162 +996,29 @@ router.post('/:id/fetch-recent', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Repo not found' });
     }
 
-    const globalRepo = userRepo.globalRepo;
-    const { owner, name } = globalRepo;
-    const repoIdStr = `${owner}/${name}`;
-
-    const github = new GitHubService(githubToken || undefined);
-    const classifier = new ClassifierService(openaiApiKey);
-
-    console.log(`Fetching older PRs for ${repoIdStr}`);
-
-    // Get repo info (includes pushedAt - last activity on GitHub)
-    const repoInfo = await github.getRepoInfo(owner, name);
-
-    // Find the oldest PR we have for this repo
-    const oldestPR = await prisma.globalPR.findFirst({
-      where: { globalRepoId: globalRepo.id },
-      orderBy: { mergedAt: 'asc' },
-      select: { mergedAt: true },
-    });
-
-    // If no PRs exist, use current date as the cutoff
-    const beforeDate = oldestPR?.mergedAt ?? new Date();
-
-    // Fetch 10 PRs older than our oldest known PR
-    const prs = await github.getOlderMergedPRs(owner, name, beforeDate, 10);
-    console.log(`Found ${prs.length} older merged PRs`);
-
-    // Get existing PR numbers to avoid re-processing (safety check)
-    const existingPRNumbers = new Set(
-      (
-        await prisma.globalPR.findMany({
-          where: { globalRepoId: globalRepo.id },
-          select: { prNumber: true },
-        })
-      ).map((p) => p.prNumber)
-    );
-
-    // Filter to new PRs only (should be all of them, but just in case)
-    const newPRs = prs.filter((pr) => !existingPRNumbers.has(pr.number));
-    console.log(`${newPRs.length} new PRs to process`);
-
-    const newUpdates: Update[] = [];
-
-    if (newPRs.length > 0) {
-      // Process with two-stage pipeline
-      console.log('Step 1: Grouping PRs with LLM...');
-      const grouping = await classifier.groupPRs(newPRs, repoInfo);
-
-      console.log('Step 2: Summarizing groups with LLM...');
-      const summaries = await classifier.summarizeAllGroups(
-        grouping,
-        newPRs,
-        repoInfo
-      );
-
-      const prsById = new Map(newPRs.map((pr) => [pr.number, pr]));
-
-      for (const group of grouping.groups) {
-        const key = group.prNumbers.sort().join('-');
-        const summary = summaries.get(key);
-
-        if (!summary) continue;
-
-        const groupPRs = group.prNumbers
-          .map((n) => prsById.get(n))
-          .filter((p): p is PRData => p !== undefined);
-
-        if (groupPRs.length === 0) continue;
-
-        const latestDate = new Date(
-          Math.max(...groupPRs.map((p) => new Date(p.mergedAt).getTime()))
-        );
-        const totalCommits = groupPRs.reduce(
-          (sum, p) => sum + p.commits.length,
-          0
-        );
-
-        // Create the Update
-        const update = await prisma.globalUpdate.create({
-          data: {
-            globalRepoId: globalRepo.id,
-            title: summary.title,
-            summary: summary.summary,
-            category: summary.category,
-            significance: summary.significance,
-            date: latestDate,
-            prCount: groupPRs.length,
-            commitCount: totalCommits,
-          },
-        });
-
-        // Create or update GlobalPRs (handles duplicates gracefully)
-        const createdPRs = await Promise.all(
-          groupPRs.map((pr) =>
-            prisma.globalPR.upsert({
-              where: {
-                globalRepoId_prNumber: {
-                  globalRepoId: globalRepo.id,
-                  prNumber: pr.number,
-                },
-              },
-              update: {
-                updateId: update.id,
-              },
-              create: {
-                globalRepoId: globalRepo.id,
-                updateId: update.id,
-                prNumber: pr.number,
-                title: pr.title,
-                body: pr.body,
-                url: pr.url,
-                mergedAt: new Date(pr.mergedAt),
-                author: pr.author,
-                labels: pr.labels ?? [],
-                commits: pr.commits.map((c) => ({
-                  sha: c.sha,
-                  message: c.message,
-                  url: c.url,
-                })),
-              },
-            })
-          )
-        );
-
-        // Add to response
-        newUpdates.push({
-          id: update.id,
-          repoId: repoIdStr,
-          title: update.title,
-          summary: update.summary,
-          category: update.category as Update['category'],
-          significance: update.significance as Update['significance'],
-          date: update.date.toISOString(),
-          createdAt: update.createdAt.toISOString(),
-          prCount: update.prCount,
-          commitCount: update.commitCount,
-          prs: createdPRs.map((pr) => buildPRInfo(pr)),
-        });
-      }
+    // Check if already indexing
+    if (userRepo.status === 'pending' || userRepo.status === 'indexing') {
+      return res.status(409).json({ error: 'Already fetching updates for this repo' });
     }
 
-    // Update lastFetchedAt
-    await prisma.globalRepo.update({
-      where: { id: globalRepo.id },
-      data: { lastFetchedAt: new Date() },
+    // Set status to pending immediately
+    await prisma.userRepo.update({
+      where: { id: userRepo.id },
+      data: { status: 'pending', progress: 'Starting...', error: null },
     });
 
-    console.log(`Finished fetching recent updates for ${repoIdStr}`);
+    // Fire background task (don't await!)
+    fetchOlderInBackground(userRepo.id, userRepo.globalRepoId).catch(
+      (err) => console.error('Background fetch older error:', err)
+    );
 
+    // Return immediately with updated status
     res.json({
-      newUpdates,
-      totalPRsFetched: prs.length,
-      newPRsProcessed: newPRs.length,
-      lastActivityAt: repoInfo.pushedAt,
+      status: 'pending',
+      message: 'Fetching older updates in background',
     });
   } catch (error) {
-    console.error('Error fetching recent updates:', error);
+    console.error('Error starting fetch recent:', error);
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Unknown error',
     });

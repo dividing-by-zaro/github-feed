@@ -75,7 +75,7 @@ github-feed/
 - **Tailwind CSS v4**: Uses `@theme inline` for custom color tokens and `@source` directive. Custom component classes (brutal-card, brutal-btn variants) defined in index.css
 - **Reports generation**: 3-phase LLM pipeline: (1) semantic theme grouping with action-oriented names, (2) parallel theme summaries as scannable bullet points with bold key terms, (3) impact-first executive summary. Version bumps, dependency updates, and internal tooling classified as `internal` and excluded from reports.
 - **Prompt templates**: LLM prompts stored as markdown files in `server/src/prompts/`, loaded via Handlebars for variable interpolation. Use `{{var}}` for escaped values, `{{{var}}}` for raw multi-line content, `{{#if var}}...{{/if}}` for conditionals.
-- **Background indexing**: Repo indexing runs asynchronously after `POST /api/repos` returns. `UserRepo.status` tracks state (`pending`, `indexing`, `completed`, `failed`), `progress` shows current step, `error` captures failures. Frontend polls `GET /api/repos/:id` every 2 seconds during indexing, similar to report generation.
+- **Background indexing**: Repo indexing runs asynchronously after `POST /api/repos` returns. `UserRepo.status` tracks state (`pending`, `indexing`, `completed`, `failed`), `progress` shows current step, `error` captures failures. Frontend polls `GET /api/repos/:id` every 2 seconds during indexing, similar to report generation. "Load older updates" also uses this pattern via `POST /api/repos/:id/fetch-recent`.
 
 ## Database Schema
 

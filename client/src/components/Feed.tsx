@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { Update, Release, Repo } from '../types';
 import { getRepoColor } from '../utils/colors';
 import UpdateCard from './UpdateCard';
 import DateHeader from './DateHeader';
 import GapIndicator from './GapIndicator';
-import { RefreshCw, Tag, Sparkles } from 'lucide-react';
+import { RefreshCw, Tag, Clock } from 'lucide-react';
 
 interface FeedProps {
   updates: Update[];
@@ -15,7 +15,7 @@ interface FeedProps {
   repos: Repo[];
   lastSeenAt: string | null;
   selectedRepo?: Repo | null;
-  onFetchRecent?: () => Promise<{ newCount: number; totalFetched: number; lastActivityAt: string | null }>;
+  onFetchRecent?: () => void;
 }
 
 export default function Feed({
@@ -29,9 +29,9 @@ export default function Feed({
   selectedRepo,
   onFetchRecent,
 }: FeedProps) {
-  const [isFetching, setIsFetching] = useState(false);
-  const [fetchResult, setFetchResult] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
-  const [lastActivityAt, setLastActivityAt] = useState<string | null>(null);
+  // Derive loading state from selected repo's status
+  const isFetching = selectedRepo?.status === 'pending' || selectedRepo?.status === 'indexing';
+  const fetchFailed = selectedRepo?.status === 'failed';
 
   // Check if item is "new" based on when it was indexed (createdAt), not activity date
   const isNew = (item: { createdAt?: string; publishedAt?: string }) => {
@@ -42,49 +42,9 @@ export default function Feed({
     return new Date(indexedAt) > new Date(lastSeenAt);
   };
 
-  const handleFetchRecent = async () => {
+  const handleFetchRecent = () => {
     if (!onFetchRecent || isFetching) return;
-
-    setIsFetching(true);
-    setFetchResult(null);
-
-    try {
-      const result = await onFetchRecent();
-      setLastActivityAt(result.lastActivityAt);
-
-      if (result.newCount > 0) {
-        setFetchResult({
-          message: `Found ${result.newCount} new update${result.newCount > 1 ? 's' : ''}`,
-          type: 'success',
-        });
-      } else if (result.totalFetched === 0) {
-        setFetchResult({
-          message: 'This repo has no pull requests',
-          type: 'info',
-        });
-      } else {
-        setFetchResult({
-          message: 'No older updates found',
-          type: 'info',
-        });
-      }
-    } catch {
-      setFetchResult({
-        message: 'Failed to fetch updates',
-        type: 'info',
-      });
-    } finally {
-      setIsFetching(false);
-    }
-  };
-
-  const formatLastFetched = (dateStr: string | null | undefined) => {
-    if (!dateStr) return 'unknown';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    onFetchRecent();
   };
 
   // Helper to get date from item (handles both Update.date and Release.publishedAt)
@@ -133,53 +93,28 @@ export default function Feed({
 
   // Empty state when viewing a specific repo
   if (allItems.length === 0 && selectedRepo) {
-    if (lastActivityAt) {
-      return (
-        <div className="flex flex-col items-center justify-center py-16 gap-4">
-          <div className="w-16 h-16 bg-lavender rounded-full flex items-center justify-center border-3 border-black">
-            <Sparkles size={28} />
-          </div>
-          <p className="font-display font-semibold text-lg">No changes on main since {formatLastFetched(lastActivityAt)}</p>
-          {fetchResult && (
-            <p className={`text-sm ${fetchResult.type === 'success' ? 'text-mint-dark' : 'text-gray-500'}`}>
-              {fetchResult.message}
-            </p>
-          )}
-        </div>
-      );
-    }
-
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-4">
         <div className="w-16 h-16 bg-yellow rounded-full flex items-center justify-center border-3 border-black">
-          <RefreshCw size={28} />
+          <RefreshCw size={28} className={isFetching ? 'animate-spin' : ''} />
         </div>
-        <p className="font-display font-semibold text-lg">No recent changes found</p>
-        {onFetchRecent && (
-          <>
-            <button
-              onClick={handleFetchRecent}
-              disabled={isFetching}
-              className="brutal-btn brutal-btn-primary"
-            >
-              {isFetching ? (
-                <>
-                  <RefreshCw size={16} className="animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={16} />
-                  Load older updates
-                </>
-              )}
-            </button>
-            {fetchResult && (
-              <p className={`text-sm ${fetchResult.type === 'success' ? 'text-mint-dark' : 'text-gray-500'}`}>
-                {fetchResult.message}
-              </p>
-            )}
-          </>
+        <p className="font-display font-semibold text-lg">
+          {isFetching ? 'Loading updates...' : 'No recent changes found'}
+        </p>
+        {isFetching && selectedRepo.progress && (
+          <p className="text-sm text-yellow-600">{selectedRepo.progress}</p>
+        )}
+        {fetchFailed && selectedRepo.error && (
+          <p className="text-sm text-red-600">{selectedRepo.error}</p>
+        )}
+        {onFetchRecent && !isFetching && (
+          <button
+            onClick={handleFetchRecent}
+            className="brutal-btn brutal-btn-primary"
+          >
+            <RefreshCw size={16} />
+            Load older updates
+          </button>
         )}
       </div>
     );
@@ -324,30 +259,49 @@ export default function Feed({
         return elements;
       })}
 
-      {selectedRepo && onFetchRecent && (
-        <div className="flex flex-col items-center gap-3 py-8 border-t-2 border-dashed border-gray-100">
-          <button
-            onClick={handleFetchRecent}
-            disabled={isFetching}
-            className="brutal-btn brutal-btn-secondary"
-          >
-            {isFetching ? (
-              <>
-                <RefreshCw size={16} className="animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <RefreshCw size={16} />
-                Load older updates
-              </>
-            )}
-          </button>
-          {fetchResult && (
-            <p className={`text-sm ${fetchResult.type === 'success' ? 'text-mint-dark' : 'text-gray-500'}`}>
-              {fetchResult.message}
-            </p>
-          )}
+      {selectedRepo && onFetchRecent && allItems.length > 0 && (
+        <div className="mt-4 p-5 bg-cream/50 border-2 border-dashed border-gray-300 rounded-lg">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center border-2 border-gray-400 shrink-0">
+              <Clock size={20} className="text-gray-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-display font-semibold text-gray-700 mb-1">
+                End of indexed updates
+              </h3>
+              <p className="text-sm text-gray-500 mb-3">
+                Updates indexed back to{' '}
+                <span className="font-semibold text-gray-700">
+                  {new Date(getItemDate(allItems[allItems.length - 1])).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+                . There may be older changes in this repository.
+              </p>
+              <button
+                onClick={handleFetchRecent}
+                disabled={isFetching}
+                className="brutal-btn brutal-btn-secondary text-sm"
+              >
+                {isFetching ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    {selectedRepo.progress || 'Loading...'}
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={14} />
+                    Load older updates
+                  </>
+                )}
+              </button>
+              {fetchFailed && selectedRepo.error && (
+                <p className="text-sm text-red-600 mt-2">{selectedRepo.error}</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
