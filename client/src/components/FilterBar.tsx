@@ -11,19 +11,15 @@ import { ChevronDown, Check } from 'lucide-react';
 interface FilterBarProps {
   selectedSignificance: Significance[];
   selectedCategories: Category[];
-  showReleases: boolean;
   onSignificanceChange: (significance: Significance[]) => void;
   onCategoriesChange: (categories: Category[]) => void;
-  onShowReleasesChange: (show: boolean) => void;
 }
 
 export default function FilterBar({
   selectedSignificance,
   selectedCategories,
-  showReleases,
   onSignificanceChange,
   onCategoriesChange,
-  onShowReleasesChange,
 }: FilterBarProps) {
   const [openDropdown, setOpenDropdown] = useState<'significance' | 'category' | null>(null);
 
@@ -44,9 +40,9 @@ export default function FilterBar({
   };
 
   const getSignificanceLabel = () => {
-    const count = selectedSignificance.length + (showReleases ? 1 : 0);
+    const count = selectedSignificance.length;
     if (count === 0) return 'Levels';
-    if (count === ALL_SIGNIFICANCE.length + 1) return 'All levels';
+    if (count === ALL_SIGNIFICANCE.length) return 'All levels';
     return `${count} levels`;
   };
 
@@ -56,7 +52,7 @@ export default function FilterBar({
     return `${selectedCategories.length} categories`;
   };
 
-  const hasActiveSignificance = selectedSignificance.length > 0 || showReleases;
+  const hasActiveSignificance = selectedSignificance.length > 0;
   const hasActiveCategory = selectedCategories.length > 0;
 
   return (
@@ -79,15 +75,6 @@ export default function FilterBar({
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
             <div className="absolute right-0 mt-2 w-48 bg-white border-3 border-black rounded-lg shadow-brutal z-50 overflow-hidden animate-slide-down">
-              <label className="flex items-center gap-3 px-4 py-3 hover:bg-cream cursor-pointer transition-colors">
-                <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${showReleases ? 'bg-lavender' : 'bg-white'}`}>
-                  {showReleases && <Check size={12} strokeWidth={3} />}
-                </div>
-                <span className="font-display font-medium text-sm">Releases</span>
-              </label>
-
-              <div className="h-px bg-black/10" />
-
               {ALL_SIGNIFICANCE.map((sig) => (
                 <label
                   key={sig}
@@ -105,19 +92,13 @@ export default function FilterBar({
 
               <div className="flex gap-2 p-2">
                 <button
-                  onClick={() => {
-                    onSignificanceChange([...ALL_SIGNIFICANCE]);
-                    onShowReleasesChange(true);
-                  }}
+                  onClick={() => onSignificanceChange([...ALL_SIGNIFICANCE])}
                   className="flex-1 px-3 py-1.5 text-xs font-display font-semibold bg-cream hover:bg-cream-dark rounded-md transition-colors"
                 >
                   Select all
                 </button>
                 <button
-                  onClick={() => {
-                    onSignificanceChange([]);
-                    onShowReleasesChange(false);
-                  }}
+                  onClick={() => onSignificanceChange([])}
                   className="flex-1 px-3 py-1.5 text-xs font-display font-semibold bg-cream hover:bg-cream-dark rounded-md transition-colors"
                 >
                   Clear

@@ -515,15 +515,15 @@ export default function App() {
             className="brutal-btn brutal-btn-yellow"
           >
             <Plus size={16} />
-            Add Repo
+            Repo
           </button>
 
           <button
             onClick={() => setShowCreateReportModal(true)}
             className="brutal-btn brutal-btn-mint"
           >
-            <FileText size={16} />
-            Generate Report
+            <Plus size={16} />
+            Report
           </button>
 
           {/* User Menu */}
