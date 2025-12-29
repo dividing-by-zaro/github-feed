@@ -491,14 +491,16 @@ export default function App() {
       ? `${selectedRepo.owner}/${selectedRepo.name}`
       : null;
 
-    // Filter by selected repo
+    // Filter by selected repo (case-insensitive since GitHub names are case-insensitive)
     if (selectedRepoKey) {
-      filtered = filtered.filter((u) => u.repoId === selectedRepoKey);
+      const lowerKey = selectedRepoKey.toLowerCase();
+      filtered = filtered.filter((u) => u.repoId.toLowerCase() === lowerKey);
     }
 
     // Filter by significance and category
     filtered = filtered.filter((update) => {
-      const repo = repos.find((r) => `${r.owner}/${r.name}` === update.repoId);
+      const updateRepoLower = update.repoId.toLowerCase();
+      const repo = repos.find((r) => `${r.owner}/${r.name}`.toLowerCase() === updateRepoLower);
 
       if (selectedRepoKey) {
         // When viewing a specific repo, use that repo's significance settings
@@ -559,10 +561,12 @@ export default function App() {
       if (selectedRepo?.showReleases === false) {
         return [];
       }
-      rel = rel.filter((r) => r.repoId === selectedRepoKey);
+      const lowerKey = selectedRepoKey.toLowerCase();
+      rel = rel.filter((r) => r.repoId.toLowerCase() === lowerKey);
     } else {
       rel = rel.filter((r) => {
-        const repo = repos.find((repo) => `${repo.owner}/${repo.name}` === r.repoId);
+        const releaseRepoLower = r.repoId.toLowerCase();
+        const repo = repos.find((repo) => `${repo.owner}/${repo.name}`.toLowerCase() === releaseRepoLower);
         return repo?.showReleases !== false;
       });
     }

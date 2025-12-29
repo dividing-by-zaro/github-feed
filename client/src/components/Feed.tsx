@@ -134,7 +134,8 @@ export default function Feed({
   }
 
   const getRepo = (repoId: string) => {
-    return repos.find((r) => `${r.owner}/${r.name}` === repoId);
+    const lowerRepoId = repoId.toLowerCase();
+    return repos.find((r) => `${r.owner}/${r.name}`.toLowerCase() === lowerRepoId);
   };
 
   const renderItem = (item: FeedItem) => {
