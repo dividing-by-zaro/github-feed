@@ -39,7 +39,7 @@ import ReportViewer from './ReportViewer';
 import LoginPage from './LoginPage';
 import MyReposPage from './MyReposPage';
 import MyReportsPage from './MyReportsPage';
-import { Plus, ChevronDown, LogOut, CheckCheck, FolderGit2, FileText, Infinity, Star, Rocket } from 'lucide-react';
+import { Plus, ChevronDown, LogOut, FolderGit2, FileText, Infinity, Star, Rocket } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout } = useAuth();
@@ -78,7 +78,7 @@ export default function App() {
   const [filterCategories, setFilterCategories] = useState<Category[]>(
     user?.visibleCategories as Category[] || ALL_CATEGORIES
   );
-  const [showReleases, setShowReleases] = useState(true);
+  const [showReleases] = useState(true);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -468,14 +468,6 @@ export default function App() {
     return reports.find((r) => r.id === selectedReportId) || null;
   }, [selectedReportId, reports]);
 
-  const hasNewItems = useMemo(() => {
-    if (!sessionLastSeenAt) return updates.length > 0 || releases.length > 0;
-    const lastSeen = new Date(sessionLastSeenAt);
-    return (
-      updates.some((u) => new Date(u.createdAt) > lastSeen) ||
-      releases.some((r) => new Date(r.publishedAt) > lastSeen)
-    );
-  }, [updates, releases, sessionLastSeenAt]);
 
   const filteredFeed = useMemo(() => {
     if (viewMode === 'releases') {
@@ -779,10 +771,8 @@ export default function App() {
                     <FilterBar
                       selectedSignificance={filterSignificance}
                       selectedCategories={filterCategories}
-                      showReleases={showReleases}
                       onSignificanceChange={setFilterSignificance}
                       onCategoriesChange={setFilterCategories}
-                      onShowReleasesChange={setShowReleases}
                     />
                   )}
                 </div>
