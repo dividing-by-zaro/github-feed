@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && tsc",
+    "build": "prisma generate && tsc && cp -r src/prompts dist/",
     "start": "node dist/index.js"
   },
   "dependencies": {
