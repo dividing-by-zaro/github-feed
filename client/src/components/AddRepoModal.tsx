@@ -153,7 +153,7 @@ export default function AddRepoModal({
                 disabled={isLoading}
                 autoFocus
                 autoComplete="off"
-                className="brutal-input pl-10"
+                className="brutal-input" style={{ paddingLeft: '2.75rem' }}
               />
 
               {/* Autocomplete Dropdown */}

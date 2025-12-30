@@ -41,6 +41,8 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
 | **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |
 | **Background Indexing** | Repos index in background with progress shown in sidebar; no blocking modal |
+| **Non-blocking Feed Load** | Stale repos refresh in background; cached data loads instantly |
+| **Landing Page** | Feature preview videos showcasing repo updates and reports |
 | **Reports** | Generate AI summaries of repo changes over a date range, grouped by significance |
 | **Prompt Templates** | LLM prompts stored as editable markdown files with Handlebars templating |
 | **Neo-Brutalist Design** | Bold colors, thick borders, offset shadows via Tailwind CSS v4 |
@@ -110,6 +112,8 @@ Add these API keys to your server `.env` file:
 - [x] Per-repo "re-index" button to regenerate summaries from scratch
 - [x] Reports feature - generate summaries of repo changes over a date range
 - [x] Background repo indexing with progress in sidebar
+- [x] Non-blocking stale repo refresh (instant feed load)
+- [x] Landing page with feature preview videos
 
 ## License
 

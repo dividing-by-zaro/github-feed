@@ -132,7 +132,7 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 
 ## Feed Refresh
 
-- **On-demand refresh**: When user loads feed, stale repos (>1 hour since last fetch) are automatically refreshed
+- **Background stale refresh**: When user loads feed, stale repos (>1 hour since last fetch) are refreshed in background. Cached data returns immediately; sidebar shows "Refreshing..." spinner for stale repos. Uses same `indexRepoInBackground` pattern as new repo adds.
 - **lastFetchedAt**: `GlobalRepo.lastFetchedAt` tracks when repo was last checked for updates
 - **Incremental updates**: Only new PRs/releases (not already in database) are fetched and classified
 - **Load older updates**: `POST /repos/:id/fetch-recent` paginates backwards from oldest known PR, fetching 10 older PRs each time

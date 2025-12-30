@@ -1031,10 +1031,9 @@ router.get('/feed/all', async (req: Request, res: Response) => {
     const user = getUser(req);
 
     const openaiApiKey = process.env.OPENAI_API_KEY;
-    const githubToken = process.env.GITHUB_TOKEN;
 
     // Get user's repos with global repo data
-    let userRepos = await prisma.userRepo.findMany({
+    const userRepos = await prisma.userRepo.findMany({
       where: { userId: user.id },
       include: {
         globalRepo: {
@@ -1049,49 +1048,52 @@ router.get('/feed/all', async (req: Request, res: Response) => {
       },
     });
 
-    // Refresh stale global repos if we have API keys
+    // Identify stale repos that need background refresh
+    // Only refresh if we have API keys and repo is not already indexing
+    const staleReposToRefresh: typeof userRepos = [];
     if (openaiApiKey && userRepos.length > 0) {
-      const github = new GitHubService(githubToken || undefined);
-      const classifier = new ClassifierService(openaiApiKey);
-
-      const staleRepos = userRepos.filter((ur) => {
+      for (const ur of userRepos) {
         const gr = ur.globalRepo;
-        return (
+        const isStale =
           !gr.lastFetchedAt ||
-          Date.now() - gr.lastFetchedAt.getTime() > STALE_THRESHOLD_MS
-        );
-      });
+          Date.now() - gr.lastFetchedAt.getTime() > STALE_THRESHOLD_MS;
+        const isAlreadyIndexing =
+          ur.status === 'pending' || ur.status === 'indexing';
 
-      if (staleRepos.length > 0) {
-        console.log(`Refreshing ${staleRepos.length} stale repos`);
-        await Promise.all(
-          staleRepos.map((ur) => {
-            const sinceDate =
-              ur.globalRepo.lastFetchedAt ||
-              new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-            return indexRepo(ur.globalRepo, github, classifier, sinceDate);
-          })
-        );
-
-        // Reload data after refresh
-        userRepos = await prisma.userRepo.findMany({
-          where: { userId: user.id },
-          include: {
-            globalRepo: {
-              include: {
-                updates: {
-                  orderBy: { date: 'desc' },
-                  include: { prs: true },
-                },
-                releases: { orderBy: { publishedAt: 'desc' } },
-              },
-            },
-          },
-        });
+        if (isStale && !isAlreadyIndexing) {
+          staleReposToRefresh.push(ur);
+        }
       }
     }
 
-    // Format response
+    // Mark stale repos as indexing and fire background refresh
+    if (staleReposToRefresh.length > 0) {
+      console.log(`Background refreshing ${staleReposToRefresh.length} stale repos`);
+
+      // Update status to indexing for all stale repos
+      await prisma.userRepo.updateMany({
+        where: { id: { in: staleReposToRefresh.map((ur) => ur.id) } },
+        data: { status: 'indexing', progress: 'Refreshing...', error: null },
+      });
+
+      // Fire background tasks (don't await!)
+      for (const ur of staleReposToRefresh) {
+        const sinceDate =
+          ur.globalRepo.lastFetchedAt ||
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+        // Update local status so response reflects indexing state
+        ur.status = 'indexing';
+        ur.progress = 'Refreshing...';
+        ur.error = null;
+
+        indexRepoInBackground(ur.id, ur.globalRepoId, sinceDate, true).catch(
+          (err) => console.error(`Background stale refresh error for ${ur.globalRepo.owner}/${ur.globalRepo.name}:`, err)
+        );
+      }
+    }
+
+    // Format response - return cached data immediately
     const repos = userRepos.map((ur) => ({
       id: ur.id,
       globalRepoId: ur.globalRepoId,
