@@ -144,9 +144,22 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 - **Activity date comparison**: "New" badges compare item's `date` (activity date for updates) or `publishedAt` (for releases) against session snapshot—NOT `createdAt` (indexing time). This prevents old PRs indexed by another user's report from appearing "new".
 - **Persistence within session**: Badges persist while navigating the site during same browser session; cleared when browser closes
 - **Storage key**: `lastSeenAt-{userId}` in sessionStorage
-- **Inbox view**: Default landing view showing only "new" items (updates + releases). Filters (levels, categories, releases toggle) apply to inbox. Shows "You're all caught up!" when empty, "That's it!" at the bottom when items exist.
-- **Feed tabs**: Inbox (default) → All Repos → Starred. Inbox is first tab and default on login.
-- **Sidebar navigation**: Top of sidebar has Feed, Repos, and Reports buttons. Feed navigates to inbox view; Repos/Reports navigate to their respective management pages (`my-repos`/`my-reports` viewMode). Sidebar receives `viewMode` and `onSetViewMode` props from App.
+- **New badge design**: Golden shimmer badge with sparkle icon, positioned on right side of UpdateCard next to star button
+- **Inbox view**: Default landing view showing only "new" items (updates + releases). Shows "You're all caught up!" when empty, "That's it!" at the bottom when items exist.
+
+## Sidebar Navigation
+
+- **Collapsible sections**: Repos and Reports are expandable/collapsible. Clicking the section header navigates to the management page AND expands the list; subsequent clicks toggle expand/collapse.
+- **Inbox button**: Top-level button navigates to inbox view (viewMode: 'inbox')
+- **Repos section**: Contains "All Repos" as first item (infinity icon), followed by individual repo subscriptions. "All Repos" navigates to combined feed (viewMode: 'all').
+- **Reports section**: Lists user's generated reports
+- **View modes**: 'inbox' | 'all' | 'starred' | 'my-repos' | 'my-reports'
+
+## Feed Filtering
+
+- **Global filters**: Significance levels and categories filter via FilterBar component (dropdowns in page header)
+- **Consistent filtering**: Same filters apply to Inbox, All Repos, Starred, and individual repo views
+- **Repo settings**: Per-repo customization limited to display name and color (feed visibility removed)
 
 ## Classification Categories
 

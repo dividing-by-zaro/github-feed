@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import type { Repo, Significance } from '../types';
-import { ALL_SIGNIFICANCE, SIGNIFICANCE_LABELS } from '../types';
+import type { Repo } from '../types';
 import { getRepoColor } from '../utils/colors';
-import { X, Trash2, Check, RefreshCw } from 'lucide-react';
+import { X, Trash2, RefreshCw } from 'lucide-react';
 
 const COLOR_OPTIONS = [
   { color: '#6366f1', name: 'Indigo' },
@@ -16,13 +15,6 @@ const COLOR_OPTIONS = [
   { color: '#06b6d4', name: 'Cyan' },
   { color: '#3b82f6', name: 'Blue' },
 ];
-
-const SIGNIFICANCE_COLORS: Record<string, string> = {
-  major: 'bg-coral',
-  minor: 'bg-mint',
-  patch: 'bg-yellow',
-  internal: 'bg-gray-100',
-};
 
 interface RepoSettingsModalProps {
   repo: Repo;
@@ -43,10 +35,6 @@ export default function RepoSettingsModal({
   const [customColor, setCustomColor] = useState(
     repo.customColor || getRepoColor(repo.id)
   );
-  const [feedSignificance, setFeedSignificance] = useState<Significance[]>(
-    repo.feedSignificance || ALL_SIGNIFICANCE
-  );
-  const [showReleases, setShowReleases] = useState(repo.showReleases ?? true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -57,15 +45,7 @@ export default function RepoSettingsModal({
       ...repo,
       displayName: displayName.trim() || undefined,
       customColor,
-      feedSignificance,
-      showReleases,
     });
-  };
-
-  const toggleSignificance = (sig: Significance) => {
-    setFeedSignificance((prev) =>
-      prev.includes(sig) ? prev.filter((s) => s !== sig) : [...prev, sig]
-    );
   };
 
   const handleDelete = () => {
@@ -148,45 +128,6 @@ export default function RepoSettingsModal({
                   }`}
                   style={{ backgroundColor: color }}
                 />
-              ))}
-            </div>
-          </div>
-
-          {/* Feed Visibility */}
-          <div className="space-y-3">
-            <div>
-              <label className="block font-display font-semibold text-sm">Feed Visibility</label>
-              <p className="text-xs text-gray-500">What to show for this repo in feeds</p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {/* Releases toggle */}
-              <label
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-black/10 hover:border-black/30 cursor-pointer transition-colors"
-                onClick={() => setShowReleases(!showReleases)}
-              >
-                <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${showReleases ? 'bg-black text-white' : 'bg-white'}`}>
-                  {showReleases && <Check size={12} strokeWidth={3} />}
-                </div>
-                <span className="px-2 py-0.5 bg-lavender text-xs font-display font-semibold rounded-full border-2 border-black">
-                  Releases
-                </span>
-              </label>
-
-              {/* Significance toggles */}
-              {ALL_SIGNIFICANCE.map((sig) => (
-                <label
-                  key={sig}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-black/10 hover:border-black/30 cursor-pointer transition-colors"
-                  onClick={() => toggleSignificance(sig)}
-                >
-                  <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${feedSignificance.includes(sig) ? 'bg-black text-white' : 'bg-white'}`}>
-                    {feedSignificance.includes(sig) && <Check size={12} strokeWidth={3} />}
-                  </div>
-                  <span className={`px-2 py-0.5 text-xs font-display font-semibold rounded-full border-2 border-black ${SIGNIFICANCE_COLORS[sig]}`}>
-                    {SIGNIFICANCE_LABELS[sig]}
-                  </span>
-                </label>
               ))}
             </div>
           </div>

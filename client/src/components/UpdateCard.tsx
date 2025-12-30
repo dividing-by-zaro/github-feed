@@ -107,31 +107,33 @@ export default function UpdateCard({
             />
           )}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span
-                className="font-display font-bold text-sm"
-                style={{ color: repoColor }}
-              >
-                {repoName}
-              </span>
-              {isNew && (
-                <span className="px-2 py-0.5 bg-sky text-black text-xs font-display font-semibold rounded-full border-2 border-black">
-                  New
-                </span>
-              )}
-            </div>
+            <span
+              className="font-display font-bold text-sm"
+              style={{ color: repoColor }}
+            >
+              {repoName}
+            </span>
           </div>
-          <button
-            onClick={() => onToggleStar(fullId)}
-            className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
-              isStarred
-                ? 'bg-yellow text-black border-2 border-black'
-                : 'hover:bg-gray-100 text-gray-300 hover:text-gray-500'
-            }`}
-            title={isStarred ? 'Unstar' : 'Star'}
-          >
-            <Star size={16} fill={isStarred ? 'currentColor' : 'none'} />
-          </button>
+          <div className="flex items-center gap-2">
+            {isNew && (
+              <div className="relative flex items-center gap-1 px-2 py-0.5 bg-yellow text-black text-xs font-display font-semibold uppercase tracking-wide rounded-md border-2 border-black overflow-hidden">
+                <Sparkles size={11} strokeWidth={2.5} className="shrink-0" />
+                <span>New</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-shimmer" />
+              </div>
+            )}
+            <button
+              onClick={() => onToggleStar(fullId)}
+              className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+                isStarred
+                  ? 'bg-yellow text-black border-2 border-black'
+                  : 'hover:bg-gray-100 text-gray-300 hover:text-gray-500'
+              }`}
+              title={isStarred ? 'Unstar' : 'Star'}
+            >
+              <Star size={16} fill={isStarred ? 'currentColor' : 'none'} />
+            </button>
+          </div>
         </div>
 
         {/* Category & Significance badges */}

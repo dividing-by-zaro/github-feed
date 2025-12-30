@@ -39,7 +39,7 @@ import ReportViewer from './ReportViewer';
 import LoginPage from './LoginPage';
 import MyReposPage from './MyReposPage';
 import MyReportsPage from './MyReportsPage';
-import { Plus, ChevronDown, LogOut, FolderGit2, FileText, Infinity, Star, Inbox } from 'lucide-react';
+import { Plus, ChevronDown, LogOut, FolderGit2, FileText } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout } = useAuth();
@@ -491,23 +491,8 @@ export default function App() {
 
     // Filter by significance and category
     filtered = filtered.filter((update) => {
-      const updateRepoLower = update.repoId.toLowerCase();
-      const repo = repos.find((r) => `${r.owner}/${r.name}`.toLowerCase() === updateRepoLower);
-
-      if (selectedRepoKey) {
-        // When viewing a specific repo, use that repo's significance settings
-        const repoSignificance = repo?.feedSignificance ?? ['major', 'minor', 'patch', 'internal'];
-        return repoSignificance.includes(update.significance);
-      }
-
-      // For "all repos" view, combine repo-specific and global filters
-      const repoSignificance = repo?.feedSignificance ?? filterSignificance;
-      const effectiveSignificance = filterSignificance.filter((s) =>
-        repoSignificance.includes(s)
-      );
-
       return (
-        effectiveSignificance.includes(update.significance) &&
+        filterSignificance.includes(update.significance) &&
         filterCategories.includes(update.category)
       );
     });
@@ -748,7 +733,6 @@ export default function App() {
             setSelectedReportId(reportId);
             setSelectedRepoId(null);
           }}
-          onCreateReport={() => setShowCreateReportModal(true)}
           onSetViewMode={(mode) => {
             setViewMode(mode);
             setSelectedRepoId(null);
@@ -789,46 +773,12 @@ export default function App() {
               {/* Page Header */}
               <div className="mb-6">
                 {selectedRepoId && (
-                  <h1 className="text-3xl font-bold mb-4">
-                    {repos.find((r) => r.id === selectedRepoId)?.displayName ||
-                      repos.find((r) => r.id === selectedRepoId)?.name ||
-                      'Repository'}
-                  </h1>
-                )}
-
-                <div className="flex items-center justify-between gap-4">
-                  {/* View Mode Selector */}
-                  {!selectedRepoId && (
-                    <div className="flex items-center bg-cream border-2 border-black rounded-full p-1.5">
-                      {[
-                        { mode: 'inbox' as const, icon: Inbox, label: 'Inbox' },
-                        { mode: 'all' as const, icon: Infinity, label: 'All Repos' },
-                        { mode: 'starred' as const, icon: Star, label: 'Starred' },
-                      ].map(({ mode, icon: Icon, label }) => {
-                        const isActive = viewMode === mode && !selectedRepoId && !selectedReportId;
-                        return (
-                          <button
-                            key={mode}
-                            onClick={() => {
-                              setViewMode(mode);
-                              setSelectedRepoId(null);
-                              setSelectedReportId(null);
-                            }}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-base transition-all duration-200 ease-out ${
-                              isActive
-                                ? 'bg-black text-white'
-                                : 'text-gray-500 hover:text-black'
-                            }`}
-                          >
-                            <Icon size={18} className="shrink-0" />
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {!selectedRepoId && (
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <h1 className="text-3xl font-bold">
+                      {repos.find((r) => r.id === selectedRepoId)?.displayName ||
+                        repos.find((r) => r.id === selectedRepoId)?.name ||
+                        'Repository'}
+                    </h1>
                     <FilterBar
                       selectedSignificance={filterSignificance}
                       selectedCategories={filterCategories}
@@ -837,8 +787,26 @@ export default function App() {
                       showReleases={showReleases}
                       onShowReleasesChange={setShowReleases}
                     />
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {!selectedRepoId && (
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <h1 className="text-3xl font-bold">
+                      {viewMode === 'inbox' && 'Inbox'}
+                      {viewMode === 'all' && 'All Repos'}
+                      {viewMode === 'starred' && 'Starred'}
+                    </h1>
+                    <FilterBar
+                      selectedSignificance={filterSignificance}
+                      selectedCategories={filterCategories}
+                      onSignificanceChange={setFilterSignificance}
+                      onCategoriesChange={setFilterCategories}
+                      showReleases={showReleases}
+                      onShowReleasesChange={setShowReleases}
+                    />
+                  </div>
+                )}
               </div>
 
               {isLoading || dataLoading ? (
