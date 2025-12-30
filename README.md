@@ -35,8 +35,8 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Releases Filter** | Toggle releases on/off in the Levels filter dropdown |
 | **Per-Repo Filters** | Same level/category filters available on individual repo pages |
 | **User Menu** | Profile picture and name with dropdown for Manage Repos, Manage Reports, and logout |
-| **Manage Repos** | View all subscribed repos, sort by date or name, delete with confirmation |
-| **Manage Reports** | View all generated reports, sort by date or name, click to view, delete with confirmation |
+| **Manage Repos** | Stats dashboard (24h/7d/30d updates, PRs, major changes), card grid with GitHub links and settings |
+| **Manage Reports** | Stats dashboard (completed/in-progress/failed), card grid with download and quick view |
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
 | **Load Older Updates** | Paginate backwards through PR history with clear "end of indexed" indicator |

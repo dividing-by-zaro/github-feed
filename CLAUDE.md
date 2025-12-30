@@ -155,6 +155,13 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 - **Reports section**: Lists user's generated reports
 - **View modes**: 'inbox' | 'all' | 'starred' | 'my-repos' | 'my-reports'
 
+## Management Pages (MyReposPage, MyReportsPage)
+
+- **Stats dashboard**: Top section shows aggregate metrics (updates in 24h/7d/30d, total PRs, major changes for repos; completed/in-progress/failed counts for reports)
+- **Two-row card layout**: Row 1 has avatar, name/owner, action buttons; Row 2 has stats with icons (PRs, dates, major counts)
+- **Quick actions**: Repos have GitHub link + Settings buttons; Reports have Download button (exports markdown)
+- **Clickable cards**: Cards navigate to repo feed or report view; delete handled in settings modal
+
 ## Feed Filtering
 
 - **Global filters**: Significance levels and categories filter via FilterBar component (dropdowns in page header)

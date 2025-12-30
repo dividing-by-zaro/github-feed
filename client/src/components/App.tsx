@@ -756,12 +756,18 @@ export default function App() {
           {viewMode === 'my-repos' ? (
             <MyReposPage
               repos={repos}
+              updates={updates}
               onOpenSettings={setRepoSettingsTarget}
               onDelete={handleRemoveRepo}
+              onSelectRepo={(repoId) => {
+                setSelectedRepoId(repoId);
+                setViewMode('all');
+              }}
             />
           ) : viewMode === 'my-reports' ? (
             <MyReportsPage
               reports={reports}
+              repos={repos}
               onSelect={(reportId) => {
                 setSelectedReportId(reportId);
                 setViewMode('all');
