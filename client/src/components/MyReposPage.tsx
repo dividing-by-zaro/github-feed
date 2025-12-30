@@ -207,8 +207,6 @@ export default function MyReposPage({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {sortedRepos.map((repo) => {
             const displayName = repo.displayName || repo.name;
-            const fullName = `${repo.owner}/${repo.name}`;
-            const showSubtitle = repo.displayName && repo.displayName !== repo.name;
             const color = repo.customColor || getRepoColor(repo.id);
             const prCount = getRepoPRCount(repo);
 
