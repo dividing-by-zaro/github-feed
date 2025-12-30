@@ -52,37 +52,45 @@ export default function Feed({
     return item.date ?? item.publishedAt ?? new Date().toISOString();
   };
 
-  // Merge updates and releases, sorted by date
-  const allItems = [
+  // Merge updates and releases
+  type FeedItem = (Update & { itemType: 'update' }) | (Release & { itemType: 'release' });
+  const allItems: FeedItem[] = [
     ...updates.map((u) => ({ ...u, itemType: 'update' as const })),
     ...releases.map((r) => ({ ...r, itemType: 'release' as const })),
-  ].sort((a, b) => new Date(getItemDate(b)).getTime() - new Date(getItemDate(a)).getTime());
+  ];
 
-  // Group items by date
-  type FeedItem = (typeof allItems)[number];
+  // Group items by date using a Map (ensures no duplicate date headers)
   interface DateGroup {
     dateKey: string;
     date: Date;
     items: FeedItem[];
   }
 
-  const groupedByDate: DateGroup[] = [];
-  let currentGroup: DateGroup | null = null;
+  const groupMap = new Map<string, DateGroup>();
 
   for (const item of allItems) {
     const itemDate = new Date(getItemDate(item));
-    const dateKey = itemDate.toISOString().split('T')[0];
+    const dateKey = `${itemDate.getFullYear()}-${String(itemDate.getMonth() + 1).padStart(2, '0')}-${String(itemDate.getDate()).padStart(2, '0')}`;
 
-    if (!currentGroup || currentGroup.dateKey !== dateKey) {
-      currentGroup = {
+    if (!groupMap.has(dateKey)) {
+      groupMap.set(dateKey, {
         dateKey,
         date: itemDate,
-        items: [item],
-      };
-      groupedByDate.push(currentGroup);
-    } else {
-      currentGroup.items.push(item);
+        items: [],
+      });
     }
+    groupMap.get(dateKey)!.items.push(item);
+  }
+
+  // Convert to array and sort groups by date (newest first)
+  const groupedByDate = Array.from(groupMap.values())
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  // Sort items within each group by date (newest first)
+  for (const group of groupedByDate) {
+    group.items.sort((a, b) =>
+      new Date(getItemDate(b)).getTime() - new Date(getItemDate(a)).getTime()
+    );
   }
 
   const daysBetween = (date1: Date, date2: Date): number => {
