@@ -107,7 +107,15 @@ export interface CommitData {
   url: string;
 }
 
-// LLM grouping response (Step 1)
+// LLM theme clustering response (Phase 1 - lightweight)
+export interface ThemeClusterResult {
+  themes: {
+    name: string;
+    prNumbers: number[];
+  }[];
+}
+
+// LLM grouping response (Phase 2 - detailed)
 export interface PRGroupingResult {
   groups: {
     prNumbers: number[];
@@ -162,21 +170,6 @@ export interface ReportContent {
     updateCount: number;
     generatedAt: string;
   };
-}
-
-// Theme grouping result from LLM
-export interface ThemeGroupingResult {
-  themes: {
-    name: string;
-    significance: Significance;
-    updateIds: string[];
-    oneLineSummary: string;
-  }[];
-}
-
-// Theme summary result from LLM
-export interface ThemeSummaryResult {
-  summary: string;
 }
 
 // Executive summary result from LLM

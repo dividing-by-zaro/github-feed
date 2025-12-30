@@ -4,59 +4,12 @@ import type {
   ReportContent,
   ReportSection,
   ReportTheme,
-  ThemeGroupingResult,
-  ThemeSummaryResult,
   ExecutiveSummaryResult,
-  Significance,
+  PRData,
 } from '../types.js';
 import { loadSystemPrompt, loadUserPrompt } from '../prompts/loader.js';
-
-// JSON Schema for theme grouping
-const THEME_GROUPING_SCHEMA = {
-  name: 'theme_grouping',
-  strict: true,
-  schema: {
-    type: 'object',
-    properties: {
-      themes: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            name: { type: 'string' },
-            significance: {
-              type: 'string',
-              enum: ['major', 'minor', 'patch'],
-            },
-            updateIds: {
-              type: 'array',
-              items: { type: 'string' },
-            },
-            oneLineSummary: { type: 'string' },
-          },
-          required: ['name', 'significance', 'updateIds', 'oneLineSummary'],
-          additionalProperties: false,
-        },
-      },
-    },
-    required: ['themes'],
-    additionalProperties: false,
-  },
-} as const;
-
-// JSON Schema for theme summary
-const THEME_SUMMARY_SCHEMA = {
-  name: 'theme_summary',
-  strict: true,
-  schema: {
-    type: 'object',
-    properties: {
-      summary: { type: 'string' },
-    },
-    required: ['summary'],
-    additionalProperties: false,
-  },
-} as const;
+import { GitHubService } from './github.js';
+import { ClassifierService } from './classifier.js';
 
 // JSON Schema for executive summary
 const EXECUTIVE_SUMMARY_SCHEMA = {
@@ -88,13 +41,18 @@ interface UpdateWithPRs {
 
 export class ReportGenerator {
   private openai: OpenAI;
+  private github: GitHubService;
+  private classifier: ClassifierService;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, githubToken?: string) {
     this.openai = new OpenAI({ apiKey });
+    this.github = new GitHubService(githubToken);
+    this.classifier = new ClassifierService(apiKey);
   }
 
   /**
    * Generate a complete report for a repository
+   * Reports show existing Updates grouped by significance - no additional clustering
    */
   async generateReport(
     globalRepoId: string,
@@ -103,13 +61,17 @@ export class ReportGenerator {
     repo: { owner: string; name: string; description?: string | null },
     onProgress: (progress: string) => Promise<void>
   ): Promise<ReportContent> {
-    await onProgress('Gathering data...');
+    await onProgress('Checking for missing data...');
 
-    // Phase 1: Gather updates from the date range
+    // Phase 1: Index any missing PRs in the date range
+    await this.indexMissingPRs(globalRepoId, startDate, endDate, repo, onProgress);
+
+    await onProgress('Gathering updates...');
+
+    // Phase 2: Gather updates from the date range
     const updates = await this.gatherUpdates(globalRepoId, startDate, endDate);
 
     if (updates.length === 0) {
-      // Return empty report
       return {
         executiveSummary: 'No significant updates found in this date range.',
         sections: [],
@@ -125,22 +87,14 @@ export class ReportGenerator {
       };
     }
 
-    await onProgress(`Analyzing ${updates.length} updates...`);
+    await onProgress(`Organizing ${updates.length} updates...`);
 
-    // Phase 2: Group updates into semantic themes using LLM
-    await onProgress('Grouping features...');
-    const themes = await this.groupIntoThemes(updates, repo);
-
-    // Phase 3: Generate detailed summaries for each theme (parallel)
-    await onProgress('Generating summaries...');
-    const themesWithSummaries = await this.generateThemeSummaries(themes, updates, repo);
-
-    // Organize into sections by significance
-    const sections = this.organizeSections(themesWithSummaries);
+    // Phase 3: Organize updates into sections by significance
+    const sections = this.organizeSections(updates);
 
     // Phase 4: Generate executive summary
-    await onProgress('Finalizing report...');
-    const executiveSummary = await this.generateExecutiveSummary(themesWithSummaries, repo, startDate, endDate);
+    await onProgress('Generating summary...');
+    const executiveSummary = await this.generateExecutiveSummary(updates, repo, startDate, endDate);
 
     // Count total PRs
     const prCount = updates.reduce((sum, u) => sum + u.prs.length, 0);
@@ -199,256 +153,164 @@ export class ReportGenerator {
   }
 
   /**
-   * Group updates into themes using LLM
+   * Index any missing PRs in the date range that aren't already in GlobalUpdate
    */
-  private async groupIntoThemes(
-    updates: UpdateWithPRs[],
-    repo: { owner: string; name: string; description?: string | null }
-  ): Promise<ThemeGroupingResult['themes']> {
-    const updateDescriptions = updates
-      .map((u) => {
-        const prList = u.prs.map((pr) => `#${pr.prNumber}`).join(', ');
-        return `[${u.id}] ${u.title} (${u.significance}) - ${u.summary || 'No summary'} [PRs: ${prList}]`;
-      })
-      .join('\n');
+  private async indexMissingPRs(
+    globalRepoId: string,
+    startDate: Date,
+    endDate: Date,
+    repo: { owner: string; name: string; description?: string | null },
+    onProgress: (progress: string) => Promise<void>
+  ): Promise<void> {
+    const { owner, name } = repo;
 
-    const systemPrompt = loadSystemPrompt('reports', 'theme-grouping-system');
-    const userPrompt = loadUserPrompt('reports', 'theme-grouping-user', {
-      updateCount: updates.length,
-      repoOwner: repo.owner,
-      repoName: repo.name,
-      repoDescription: repo.description,
-      updateDescriptions,
+    // Get repo info for classifier
+    const repoInfo = await this.github.getRepoInfo(owner, name);
+
+    // Fetch PRs from GitHub within the date range
+    await onProgress('Fetching PRs from GitHub...');
+    const allPRs = await this.github.getMergedPRs(owner, name, startDate, 200);
+
+    // Filter to only PRs within the date range
+    const prsInRange = allPRs.filter((pr) => {
+      const mergedAt = new Date(pr.mergedAt);
+      return mergedAt >= startDate && mergedAt <= endDate;
     });
 
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.3,
-        response_format: {
-          type: 'json_schema',
-          json_schema: THEME_GROUPING_SCHEMA,
+    if (prsInRange.length === 0) {
+      console.log(`No PRs found in date range for ${owner}/${name}`);
+      return;
+    }
+
+    console.log(`Found ${prsInRange.length} PRs in date range for ${owner}/${name}`);
+
+    // Get existing PR numbers that are already indexed
+    const existingPRNumbers = new Set(
+      (
+        await prisma.globalPR.findMany({
+          where: { globalRepoId },
+          select: { prNumber: true },
+        })
+      ).map((p) => p.prNumber)
+    );
+
+    // Filter to new PRs only
+    const newPRs = prsInRange.filter((pr) => !existingPRNumbers.has(pr.number));
+
+    if (newPRs.length === 0) {
+      console.log(`All ${prsInRange.length} PRs already indexed`);
+      return;
+    }
+
+    console.log(`${newPRs.length} new PRs to index`);
+    await onProgress(`Indexing ${newPRs.length} new PRs...`);
+
+    // Group PRs using classifier
+    const grouping = await this.classifier.groupPRs(newPRs, repoInfo);
+    console.log(`Created ${grouping.groups.length} semantic groups`);
+
+    // Summarize groups
+    await onProgress(`Summarizing ${grouping.groups.length} updates...`);
+    const summaries = await this.classifier.summarizeAllGroups(grouping, newPRs, repoInfo);
+
+    // Create GlobalPRs and GlobalUpdates
+    const prsById = new Map(newPRs.map((pr) => [pr.number, pr]));
+
+    for (const group of grouping.groups) {
+      const key = group.prNumbers.sort().join('-');
+      const summary = summaries.get(key);
+
+      if (!summary) {
+        console.error(`No summary for group ${key}`);
+        continue;
+      }
+
+      // Get PRs in this group
+      const groupPRs = group.prNumbers
+        .map((n) => prsById.get(n))
+        .filter((p): p is PRData => p !== undefined);
+
+      if (groupPRs.length === 0) continue;
+
+      // Calculate aggregates
+      const latestDate = new Date(
+        Math.max(...groupPRs.map((p) => new Date(p.mergedAt).getTime()))
+      );
+      const totalCommits = groupPRs.reduce(
+        (sum, p) => sum + p.commits.length,
+        0
+      );
+
+      // Create the Update
+      const update = await prisma.globalUpdate.create({
+        data: {
+          globalRepoId,
+          title: summary.title,
+          summary: summary.summary,
+          category: summary.category,
+          significance: summary.significance,
+          date: latestDate,
+          prCount: groupPRs.length,
+          commitCount: totalCommits,
         },
       });
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        return this.fallbackThemeGrouping(updates);
-      }
+      // Create GlobalPRs linked to this Update
+      await prisma.globalPR.createMany({
+        data: groupPRs.map((pr) => ({
+          globalRepoId,
+          updateId: update.id,
+          prNumber: pr.number,
+          title: pr.title,
+          body: pr.body,
+          url: pr.url,
+          mergedAt: new Date(pr.mergedAt),
+          author: pr.author,
+          labels: pr.labels ?? [],
+          commits: pr.commits.map((c) => ({
+            sha: c.sha,
+            message: c.message,
+            url: c.url,
+          })),
+        })),
+        skipDuplicates: true,
+      });
 
-      const result = JSON.parse(content) as ThemeGroupingResult;
-
-      // Validate all updates are assigned
-      const assignedIds = new Set(result.themes.flatMap((t) => t.updateIds));
-      const missingUpdates = updates.filter((u) => !assignedIds.has(u.id));
-
-      if (missingUpdates.length > 0) {
-        // Add missing updates to an "Other Changes" theme
-        const hasMaxor = missingUpdates.some((u) => u.significance === 'major');
-        const hasMinor = missingUpdates.some((u) => u.significance === 'minor');
-        const significance: Significance = hasMaxor ? 'major' : hasMinor ? 'minor' : 'patch';
-
-        result.themes.push({
-          name: 'Other Changes',
-          significance,
-          updateIds: missingUpdates.map((u) => u.id),
-          oneLineSummary: 'Additional miscellaneous updates',
-        });
-      }
-
-      return result.themes;
-    } catch (error) {
-      console.error('Error grouping themes:', error);
-      return this.fallbackThemeGrouping(updates);
+      console.log(`Created update "${summary.title}" with ${groupPRs.length} PRs`);
     }
+
+    console.log(`Finished indexing missing PRs for ${owner}/${name}`);
   }
 
   /**
-   * Fallback theme grouping by significance
+   * Organize updates into sections by significance
+   * Each update becomes a "theme" in the report (no additional clustering)
    */
-  private fallbackThemeGrouping(updates: UpdateWithPRs[]): ThemeGroupingResult['themes'] {
-    const themes: ThemeGroupingResult['themes'] = [];
+  private organizeSections(updates: UpdateWithPRs[]): ReportSection[] {
+    const sections: ReportSection[] = [];
 
     const majorUpdates = updates.filter((u) => u.significance === 'major');
     const minorUpdates = updates.filter((u) => u.significance === 'minor');
     const patchUpdates = updates.filter((u) => u.significance === 'patch');
 
     if (majorUpdates.length > 0) {
-      themes.push({
-        name: 'Major Changes',
+      sections.push({
         significance: 'major',
-        updateIds: majorUpdates.map((u) => u.id),
-        oneLineSummary: `${majorUpdates.length} major updates`,
+        themes: majorUpdates.map((u) => this.updateToTheme(u)),
       });
     }
 
     if (minorUpdates.length > 0) {
-      themes.push({
-        name: 'Minor Enhancements',
+      sections.push({
         significance: 'minor',
-        updateIds: minorUpdates.map((u) => u.id),
-        oneLineSummary: `${minorUpdates.length} minor updates`,
+        themes: minorUpdates.map((u) => this.updateToTheme(u)),
       });
     }
 
     if (patchUpdates.length > 0) {
-      themes.push({
-        name: 'Bug Fixes & Patches',
-        significance: 'patch',
-        updateIds: patchUpdates.map((u) => u.id),
-        oneLineSummary: `${patchUpdates.length} patch updates`,
-      });
-    }
-
-    return themes;
-  }
-
-  /**
-   * Generate detailed summaries for each theme (parallel)
-   */
-  private async generateThemeSummaries(
-    themes: ThemeGroupingResult['themes'],
-    updates: UpdateWithPRs[],
-    repo: { owner: string; name: string; description?: string | null }
-  ): Promise<Array<ThemeGroupingResult['themes'][0] & { detailedSummary: string; relatedPRs: ReportTheme['relatedPRs'] }>> {
-    const updatesById = new Map(updates.map((u) => [u.id, u]));
-
-    // Process in parallel with concurrency limit
-    const concurrency = 5;
-    const results: Array<ThemeGroupingResult['themes'][0] & { detailedSummary: string; relatedPRs: ReportTheme['relatedPRs'] }> = [];
-
-    for (let i = 0; i < themes.length; i += concurrency) {
-      const batch = themes.slice(i, i + concurrency);
-      const batchResults = await Promise.all(
-        batch.map(async (theme) => {
-          const themeUpdates = theme.updateIds
-            .map((id) => updatesById.get(id))
-            .filter((u): u is UpdateWithPRs => u !== undefined);
-
-          const detailedSummary = await this.generateThemeSummary(theme, themeUpdates, repo);
-
-          // Collect all PRs for this theme
-          const relatedPRs: ReportTheme['relatedPRs'] = [];
-          for (const update of themeUpdates) {
-            for (const pr of update.prs) {
-              relatedPRs.push({
-                number: pr.prNumber,
-                title: pr.title,
-                url: pr.url,
-              });
-            }
-          }
-
-          return {
-            ...theme,
-            detailedSummary,
-            relatedPRs,
-          };
-        })
-      );
-
-      results.push(...batchResults);
-    }
-
-    return results;
-  }
-
-  /**
-   * Generate detailed summary for a single theme
-   */
-  private async generateThemeSummary(
-    theme: ThemeGroupingResult['themes'][0],
-    updates: UpdateWithPRs[],
-    repo: { owner: string; name: string; description?: string | null }
-  ): Promise<string> {
-    const updateDescriptions = updates
-      .map((u) => {
-        const prList = u.prs.map((pr) => `#${pr.prNumber}: ${pr.title}`).join('; ');
-        return `- ${u.title}: ${u.summary || 'No summary'}\n  PRs: ${prList}`;
-      })
-      .join('\n');
-
-    const systemPrompt = loadSystemPrompt('reports', 'theme-summary-system');
-    const userPrompt = loadUserPrompt('reports', 'theme-summary-user', {
-      repoOwner: repo.owner,
-      repoName: repo.name,
-      themeName: theme.name,
-      updateDescriptions,
-    });
-
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.2,
-        response_format: {
-          type: 'json_schema',
-          json_schema: THEME_SUMMARY_SCHEMA,
-        },
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        return theme.oneLineSummary;
-      }
-
-      const result = JSON.parse(content) as ThemeSummaryResult;
-      return result.summary;
-    } catch (error) {
-      console.error('Error generating theme summary:', error);
-      return theme.oneLineSummary;
-    }
-  }
-
-  /**
-   * Organize themes into sections by significance
-   */
-  private organizeSections(
-    themes: Array<ThemeGroupingResult['themes'][0] & { detailedSummary: string; relatedPRs: ReportTheme['relatedPRs'] }>
-  ): ReportSection[] {
-    const sections: ReportSection[] = [];
-
-    const majorThemes = themes.filter((t) => t.significance === 'major');
-    const minorThemes = themes.filter((t) => t.significance === 'minor');
-    const patchThemes = themes.filter((t) => t.significance === 'patch');
-
-    if (majorThemes.length > 0) {
-      sections.push({
-        significance: 'major',
-        themes: majorThemes.map((t) => ({
-          name: t.name,
-          summary: t.detailedSummary,
-          relatedPRs: t.relatedPRs,
-        })),
-      });
-    }
-
-    if (minorThemes.length > 0) {
-      sections.push({
-        significance: 'minor',
-        themes: minorThemes.map((t) => ({
-          name: t.name,
-          summary: t.detailedSummary,
-          relatedPRs: t.relatedPRs,
-        })),
-      });
-    }
-
-    if (patchThemes.length > 0) {
       sections.push({
         significance: 'patch',
-        themes: patchThemes.map((t) => ({
-          name: t.name,
-          summary: t.detailedSummary,
-          relatedPRs: t.relatedPRs,
-        })),
+        themes: patchUpdates.map((u) => this.updateToTheme(u)),
       });
     }
 
@@ -456,16 +318,37 @@ export class ReportGenerator {
   }
 
   /**
-   * Generate executive summary
+   * Convert an Update to a ReportTheme
+   */
+  private updateToTheme(update: UpdateWithPRs): ReportTheme {
+    return {
+      name: update.title,
+      summary: update.summary || 'No summary available',
+      relatedPRs: update.prs.map((pr) => ({
+        number: pr.prNumber,
+        title: pr.title,
+        url: pr.url,
+      })),
+    };
+  }
+
+  /**
+   * Generate executive summary from updates
    */
   private async generateExecutiveSummary(
-    themes: Array<ThemeGroupingResult['themes'][0] & { detailedSummary: string }>,
+    updates: UpdateWithPRs[],
     repo: { owner: string; name: string; description?: string | null },
     startDate: Date,
     endDate: Date
   ): Promise<string> {
-    const themeSummaries = themes
-      .map((t) => `${t.name} (${t.significance}): ${t.oneLineSummary}`)
+    // Build a summary of updates by significance
+    const majorCount = updates.filter((u) => u.significance === 'major').length;
+    const minorCount = updates.filter((u) => u.significance === 'minor').length;
+    const patchCount = updates.filter((u) => u.significance === 'patch').length;
+
+    const updateSummaries = updates
+      .slice(0, 20) // Limit to first 20 for context
+      .map((u) => `- ${u.title} (${u.significance}): ${u.summary || 'No summary'}`)
       .join('\n');
 
     const formatDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -477,7 +360,10 @@ export class ReportGenerator {
       repoDescription: repo.description,
       startDate: formatDate(startDate),
       endDate: formatDate(endDate),
-      themeSummaries,
+      majorCount,
+      minorCount,
+      patchCount,
+      updateSummaries,
     });
 
     try {
@@ -496,14 +382,31 @@ export class ReportGenerator {
 
       const content = response.choices[0]?.message?.content;
       if (!content) {
-        return `This report covers changes to ${repo.owner}/${repo.name} from ${formatDate(startDate)} to ${formatDate(endDate)}, including ${themes.length} key themes.`;
+        return this.fallbackExecutiveSummary(repo, startDate, endDate, majorCount, minorCount, patchCount);
       }
 
       const result = JSON.parse(content) as ExecutiveSummaryResult;
       return result.summary;
     } catch (error) {
       console.error('Error generating executive summary:', error);
-      return `This report covers changes to ${repo.owner}/${repo.name} from ${formatDate(startDate)} to ${formatDate(endDate)}, including ${themes.length} key themes.`;
+      return this.fallbackExecutiveSummary(repo, startDate, endDate, majorCount, minorCount, patchCount);
     }
+  }
+
+  private fallbackExecutiveSummary(
+    repo: { owner: string; name: string },
+    startDate: Date,
+    endDate: Date,
+    majorCount: number,
+    minorCount: number,
+    patchCount: number
+  ): string {
+    const formatDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const parts = [];
+    if (majorCount > 0) parts.push(`${majorCount} major update${majorCount > 1 ? 's' : ''}`);
+    if (minorCount > 0) parts.push(`${minorCount} minor enhancement${minorCount > 1 ? 's' : ''}`);
+    if (patchCount > 0) parts.push(`${patchCount} bug fix${patchCount > 1 ? 'es' : ''}`);
+
+    return `This report covers changes to ${repo.owner}/${repo.name} from ${formatDate(startDate)} to ${formatDate(endDate)}, including ${parts.join(', ')}.`;
   }
 }

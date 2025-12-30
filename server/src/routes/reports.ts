@@ -228,6 +228,8 @@ router.get('/:id/markdown', async (req: Request, res: Response) => {
 // Background report generation
 async function generateReportInBackground(reportId: string) {
   const openaiApiKey = process.env.OPENAI_API_KEY;
+  const githubToken = process.env.GITHUB_TOKEN;
+
   if (!openaiApiKey) {
     await prisma.report.update({
       where: { id: reportId },
@@ -253,8 +255,8 @@ async function generateReportInBackground(reportId: string) {
       throw new Error('Report not found');
     }
 
-    // Generate the report content
-    const generator = new ReportGenerator(openaiApiKey);
+    // Generate the report content (with GitHub token for fetching missing PRs)
+    const generator = new ReportGenerator(openaiApiKey, githubToken || undefined);
     const content = await generator.generateReport(
       report.globalRepoId,
       report.startDate,

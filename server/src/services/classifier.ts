@@ -3,6 +3,7 @@ import type {
   PRData,
   RepoInfo,
   ReleaseData,
+  ThemeClusterResult,
   PRGroupingResult,
   GroupSummaryResult,
   ReleaseType,
@@ -10,7 +11,35 @@ import type {
 } from '../types.js';
 import { loadSystemPrompt, loadUserPrompt } from '../prompts/loader.js';
 
-// JSON Schema for PR grouping (Step 1)
+// JSON Schema for theme clustering (Phase 1 - lightweight)
+const THEME_CLUSTERING_SCHEMA = {
+  name: 'theme_clustering',
+  strict: true,
+  schema: {
+    type: 'object',
+    properties: {
+      themes: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            prNumbers: {
+              type: 'array',
+              items: { type: 'number' },
+            },
+          },
+          required: ['name', 'prNumbers'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['themes'],
+    additionalProperties: false,
+  },
+} as const;
+
+// JSON Schema for PR grouping (Phase 2 - detailed)
 const PR_GROUPING_SCHEMA = {
   name: 'pr_grouping',
   strict: true,
@@ -197,13 +226,12 @@ export class ClassifierService {
     return { clusters, standalone };
   }
 
-  // ============ PR GROUPING (LLM Step 1) ============
-
-  private static readonly BATCH_SIZE = 8; // PRs per grouping call
+  // ============ PR GROUPING (Two-Phase Approach) ============
 
   /**
-   * Group PRs semantically using LLM (batched and parallel)
-   * PRs are batched by time proximity since related PRs are usually merged close together
+   * Group PRs semantically using a two-phase LLM approach:
+   * Phase 1: Cluster all PRs by theme (lightweight, sees all PRs)
+   * Phase 2: Detailed grouping within each theme cluster
    */
   async groupPRs(prs: PRData[], repoInfo: RepoInfo): Promise<PRGroupingResult> {
     if (prs.length === 0) {
@@ -217,40 +245,175 @@ export class ClassifierService {
       };
     }
 
-    // PRs are already sorted by merge date (newest first)
-    // Batch them so temporally close PRs are grouped together
-    const batches: PRData[][] = [];
-    for (let i = 0; i < prs.length; i += ClassifierService.BATCH_SIZE) {
-      batches.push(prs.slice(i, i + ClassifierService.BATCH_SIZE));
+    // If 5 or fewer PRs, skip Phase 1 and go directly to detailed grouping
+    if (prs.length <= 5) {
+      console.log(`Grouping ${prs.length} PRs directly (small batch)`);
+      return this.groupPRsWithinTheme(prs, repoInfo, 'All changes');
     }
 
-    console.log(`Grouping ${prs.length} PRs in ${batches.length} parallel batches`);
+    console.log(`Phase 1: Clustering ${prs.length} PRs by theme...`);
 
-    // Run all batch grouping calls in parallel
-    const batchResults = await Promise.all(
-      batches.map((batch) => this.groupPRBatch(batch, repoInfo))
-    );
+    // Phase 1: Cluster by theme (lightweight - just titles and labels)
+    const themeClusters = await this.clusterPRsByTheme(prs, repoInfo);
+    console.log(`Identified ${themeClusters.themes.length} theme clusters`);
 
-    // Combine all groups
-    const allGroups = batchResults.flatMap((result) => result.groups);
+    // Deduplicate: ensure each PR appears in only one theme (first occurrence wins)
+    const assignedPRs = new Set<number>();
+    const deduplicatedThemes = themeClusters.themes.map((theme) => ({
+      ...theme,
+      prNumbers: theme.prNumbers.filter((prNum) => {
+        if (assignedPRs.has(prNum)) {
+          return false; // Skip - already assigned to another theme
+        }
+        assignedPRs.add(prNum);
+        return true;
+      }),
+    })).filter((theme) => theme.prNumbers.length > 0); // Remove empty themes
+
+    console.log(`After deduplication: ${deduplicatedThemes.length} themes with ${assignedPRs.size} unique PRs`);
+
+    // Phase 2: Detailed grouping within each theme cluster (parallel)
+    console.log(`Phase 2: Detailed grouping within ${deduplicatedThemes.length} themes...`);
+
+    const prsById = new Map(prs.map((pr) => [pr.number, pr]));
+    const allGroups: PRGroupingResult['groups'] = [];
+    const groupedPRNumbers = new Set<number>();
+
+    // Process theme clusters in parallel (with concurrency limit)
+    const concurrency = 3;
+    for (let i = 0; i < deduplicatedThemes.length; i += concurrency) {
+      const batch = deduplicatedThemes.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map(async (theme) => {
+          const themePRs = theme.prNumbers
+            .map((n) => prsById.get(n))
+            .filter((p): p is PRData => p !== undefined);
+
+          if (themePRs.length === 0) return { groups: [] };
+
+          // Single PR in theme = standalone group
+          if (themePRs.length === 1) {
+            return {
+              groups: [{ prNumbers: [themePRs[0].number], reason: theme.name }],
+            };
+          }
+
+          return this.groupPRsWithinTheme(themePRs, repoInfo, theme.name);
+        })
+      );
+
+      for (const result of batchResults) {
+        // Deduplicate groups: ensure each PR only appears once across all groups
+        for (const group of result.groups) {
+          const uniquePRs = group.prNumbers.filter((prNum) => {
+            if (groupedPRNumbers.has(prNum)) {
+              return false; // Skip - already in another group
+            }
+            groupedPRNumbers.add(prNum);
+            return true;
+          });
+
+          if (uniquePRs.length > 0) {
+            allGroups.push({
+              prNumbers: uniquePRs,
+              reason: group.reason,
+            });
+          }
+        }
+      }
+    }
+
+    // Add any missing PRs as standalone groups
+    const allPRNumbers = new Set(prs.map((p) => p.number));
+    for (const prNumber of allPRNumbers) {
+      if (!groupedPRNumbers.has(prNumber)) {
+        allGroups.push({
+          prNumbers: [prNumber],
+          reason: 'Not grouped with others',
+        });
+        groupedPRNumbers.add(prNumber);
+      }
+    }
+
+    console.log(`Final: ${allGroups.length} groups with ${groupedPRNumbers.size} PRs`);
 
     return { groups: allGroups };
   }
 
   /**
-   * Group a single batch of PRs
+   * Phase 1: Cluster PRs by theme using lightweight info (titles + labels only)
    */
-  private async groupPRBatch(
+  private async clusterPRsByTheme(
     prs: PRData[],
     repoInfo: RepoInfo
-  ): Promise<PRGroupingResult> {
-    // Single PR = standalone group
-    if (prs.length === 1) {
-      return {
-        groups: [{ prNumbers: [prs[0].number], reason: 'Single PR' }],
-      };
-    }
+  ): Promise<ThemeClusterResult> {
+    // Build lightweight PR briefs (just title and labels)
+    const prBriefs = prs
+      .map((pr) => {
+        const labels = pr.labels?.length ? ` [${pr.labels.join(', ')}]` : '';
+        return `#${pr.number}: ${pr.title}${labels}`;
+      })
+      .join('\n');
 
+    const systemPrompt = loadSystemPrompt('classifier', 'theme-clustering-system');
+    const userPrompt = loadUserPrompt('classifier', 'theme-clustering-user', {
+      prCount: prs.length,
+      repoOwner: repoInfo.owner,
+      repoName: repoInfo.name,
+      repoDescription: repoInfo.description,
+      prBriefs,
+    });
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.3,
+        response_format: {
+          type: 'json_schema',
+          json_schema: THEME_CLUSTERING_SCHEMA,
+        },
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        console.error('No content in theme clustering response');
+        return this.fallbackThemeClustering(prs);
+      }
+
+      const result = JSON.parse(content) as ThemeClusterResult;
+
+      // Validate all PRs are accounted for
+      const clusteredPRs = new Set(result.themes.flatMap((t) => t.prNumbers));
+      const allPRNumbers = prs.map((p) => p.number);
+      const missingPRs = allPRNumbers.filter((n) => !clusteredPRs.has(n));
+
+      if (missingPRs.length > 0) {
+        // Add missing PRs as "Miscellaneous" theme
+        result.themes.push({
+          name: 'Miscellaneous changes',
+          prNumbers: missingPRs,
+        });
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error clustering PRs by theme:', error);
+      return this.fallbackThemeClustering(prs);
+    }
+  }
+
+  /**
+   * Phase 2: Detailed grouping within a theme cluster
+   */
+  private async groupPRsWithinTheme(
+    prs: PRData[],
+    repoInfo: RepoInfo,
+    themeName: string
+  ): Promise<PRGroupingResult> {
     const prDescriptions = this.buildPRDescriptions(prs);
     const systemPrompt = loadSystemPrompt('classifier', 'pr-grouping-system');
     const userPrompt = loadUserPrompt('classifier', 'pr-grouping-user', {
@@ -258,6 +421,7 @@ export class ClassifierService {
       repoOwner: repoInfo.owner,
       repoName: repoInfo.name,
       repoDescription: repoInfo.description,
+      themeName,
       prDescriptions,
     });
 
@@ -287,7 +451,6 @@ export class ClassifierService {
       const groupedPRs = new Set(result.groups.flatMap((g) => g.prNumbers));
       const allPRNumbers = new Set(prs.map((p) => p.number));
 
-      // Add any missing PRs as standalone groups
       for (const prNumber of allPRNumbers) {
         if (!groupedPRs.has(prNumber)) {
           result.groups.push({
@@ -299,7 +462,7 @@ export class ClassifierService {
 
       return result;
     } catch (error) {
-      console.error('Error grouping PR batch:', error);
+      console.error('Error grouping PRs within theme:', error);
       return this.fallbackGrouping(prs);
     }
   }
@@ -320,6 +483,18 @@ Description: ${(pr.body || 'No description').slice(0, 400)}
 Commits: ${commits || 'none'}`;
       })
       .join('\n---\n');
+  }
+
+  private fallbackThemeClustering(prs: PRData[]): ThemeClusterResult {
+    // Fallback: all PRs in one theme
+    return {
+      themes: [
+        {
+          name: 'All changes',
+          prNumbers: prs.map((p) => p.number),
+        },
+      ],
+    };
   }
 
   private fallbackGrouping(prs: PRData[]): PRGroupingResult {

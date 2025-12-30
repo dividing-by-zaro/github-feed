@@ -129,6 +129,13 @@ async function indexRepo(
 
   console.log(`Indexing ${repoIdStr} since ${sinceDate.toISOString()}`);
 
+  // Update lastFetchedAt IMMEDIATELY to prevent concurrent indexing race conditions
+  // Other requests will see this repo as "recently fetched" and skip
+  await prisma.globalRepo.update({
+    where: { id: globalRepo.id },
+    data: { lastFetchedAt: new Date() },
+  });
+
   // Fetch repo info
   if (onProgress) await onProgress('Fetching repository info...');
   const repoInfo = await github.getRepoInfo(owner, name);
@@ -287,12 +294,6 @@ async function indexRepo(
 
     console.log(`Created ${processed.length} releases`);
   }
-
-  // Update lastFetchedAt
-  await prisma.globalRepo.update({
-    where: { id: globalRepo.id },
-    data: { lastFetchedAt: new Date() },
-  });
 
   console.log(`Finished indexing ${repoIdStr}`);
 }

@@ -1,8 +1,10 @@
 Write an executive summary for {{repoOwner}}/{{repoName}} covering {{startDate}} to {{endDate}}.
 {{#if repoDescription}}Repository: {{repoDescription}}{{/if}}
 
-Themes:
-{{{themeSummaries}}}
+Activity: {{majorCount}} major, {{minorCount}} minor, {{patchCount}} patch updates.
+
+Updates:
+{{{updateSummaries}}}
 
 STRUCTURE:
 1. **Impact verdict** (1 sentence): Was this period high-impact, moderate, low-impact, or quiet for end users? When determining the impact, consider the true value of changes, NOT the volume of changes. Many PRs but only minor & patch levels means lower impact, while few PRs but mostly major levels has higher impact.
