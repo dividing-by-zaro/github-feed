@@ -77,13 +77,14 @@ github-feed/
 - **Two-phase PR classification**: Initial indexing uses (1) theme clustering to group PRs by broad theme (3-6 themes), then (2) detailed grouping within each theme. Prompts in `classifier/theme-clustering-*.md` favor fewer, broader groups over granular topics.
 - **Prompt templates**: LLM prompts stored as markdown files in `server/src/prompts/`, loaded via Handlebars for variable interpolation. Use `{{var}}` for escaped values, `{{{var}}}` for raw multi-line content, `{{#if var}}...{{/if}}` for conditionals.
 - **Background indexing**: Repo indexing runs asynchronously after `POST /api/repos` returns. `UserRepo.status` tracks state (`pending`, `indexing`, `completed`, `failed`), `progress` shows current step, `error` captures failures. Frontend polls `GET /api/repos/:id` every 2 seconds during indexing, similar to report generation. "Load older updates" also uses this pattern via `POST /api/repos/:id/fetch-recent`.
+- **Duplicate prevention**: Backend uses `groupHash` (SHA256 of sorted PR numbers) with upsert to prevent duplicate GlobalUpdate records. Frontend polling filters out existing update IDs before adding to state.
 
 ## Database Schema
 
 **Global tables** (shared across all users):
 - `GlobalRepo` - Repo metadata, lastFetchedAt for staleness check
-- `GlobalUpdate` - Semantic updates (grouped PRs) with AI-generated summaries
-- `GlobalPR` - Individual PRs linked to their parent Update
+- `GlobalUpdate` - Semantic updates (grouped PRs) with AI-generated summaries. Has `groupHash` field (SHA256 of sorted PR numbers) with unique constraint `[globalRepoId, groupHash]` to prevent duplicates.
+- `GlobalPR` - Individual PRs linked to their parent Update. Has unique constraint `[globalRepoId, prNumber]`.
 - `GlobalRelease` - Releases with AI-generated summaries
 
 **User tables**:

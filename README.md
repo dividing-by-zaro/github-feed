@@ -38,6 +38,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Manage Repos** | Stats dashboard (24h/7d/30d updates, PRs, major changes), card grid with GitHub links and settings |
 | **Manage Reports** | Stats dashboard (completed/in-progress/failed), card grid with download and quick view |
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
+| **Duplicate Prevention** | Hash-based deduplication prevents duplicate updates in feed |
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
 | **Load Older Updates** | Paginate backwards through PR history with clear "end of indexed" indicator |
 | **Re-index Repo** | Delete cached data and regenerate AI summaries from scratch |

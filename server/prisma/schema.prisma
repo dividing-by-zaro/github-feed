@@ -17,10 +17,12 @@ model GlobalUpdate {
   prCount      Int        @default(1)
   commitCount  Int        @default(0)
   globalRepoId String
+  groupHash    String?    // SHA256 hash of sorted PR numbers for deduplication
   createdAt    DateTime   @default(now())
   globalRepo   GlobalRepo @relation(fields: [globalRepoId], references: [id], onDelete: Cascade)
   prs          GlobalPR[]
 
+  @@unique([globalRepoId, groupHash])
   @@index([globalRepoId, date])
 }
 

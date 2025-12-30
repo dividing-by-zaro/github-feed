@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { createHash } from 'crypto';
 import { prisma } from '../db.js';
 import { GitHubService } from '../services/github.js';
 import { ClassifierService } from '../services/classifier.js';
@@ -10,6 +11,12 @@ const router = Router();
 
 // Stale threshold: 1 hour
 const STALE_THRESHOLD_MS = 60 * 60 * 1000;
+
+// Generate deterministic hash from PR numbers for deduplication
+function hashPRGroup(prNumbers: number[]): string {
+  const sorted = [...prNumbers].sort((a, b) => a - b).join('-');
+  return createHash('sha256').update(sorted).digest('hex');
+}
 
 // Helper: Build PRInfo from GlobalPR for client response
 function buildPRInfo(globalPR: {
@@ -229,10 +236,21 @@ async function indexRepo(
         0
       );
 
-      // Create the Update
-      const update = await prisma.globalUpdate.create({
-        data: {
+      // Generate hash for deduplication
+      const groupHash = hashPRGroup(group.prNumbers);
+
+      // Upsert the Update (prevents duplicates via unique constraint)
+      const update = await prisma.globalUpdate.upsert({
+        where: {
+          globalRepoId_groupHash: {
+            globalRepoId: globalRepo.id,
+            groupHash,
+          },
+        },
+        update: {}, // No update needed if exists
+        create: {
           globalRepoId: globalRepo.id,
+          groupHash,
           title: summary.title,
           summary: summary.summary,
           category: summary.category,
@@ -471,10 +489,21 @@ async function fetchOlderInBackground(userRepoId: string, globalRepoId: string) 
         );
         const totalCommits = groupPRs.reduce((sum, p) => sum + p.commits.length, 0);
 
-        // Create the Update
-        const update = await prisma.globalUpdate.create({
-          data: {
+        // Generate hash for deduplication
+        const groupHash = hashPRGroup(group.prNumbers);
+
+        // Upsert the Update (prevents duplicates via unique constraint)
+        const update = await prisma.globalUpdate.upsert({
+          where: {
+            globalRepoId_groupHash: {
+              globalRepoId: globalRepo.id,
+              groupHash,
+            },
+          },
+          update: {}, // No update needed if exists
+          create: {
             globalRepoId: globalRepo.id,
+            groupHash,
             title: summary.title,
             summary: summary.summary,
             category: summary.category,

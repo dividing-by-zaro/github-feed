@@ -432,18 +432,20 @@ export default function App() {
               prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status, progress: updated.progress, error: updated.error } : r))
             );
 
-            // If just completed, add the updates and releases
+            // If just completed, add the updates and releases (filtering out any existing to prevent duplicates)
             if (updated.status === 'completed' && (repo.status === 'pending' || repo.status === 'indexing')) {
               const repoIdStr = `${updated.owner}/${updated.name}`;
               if (updated.updates?.length > 0) {
+                const newUpdateIds = new Set(updated.updates.map((u: Update) => u.id));
                 setUpdates((prev) => [
-                  ...prev,
+                  ...prev.filter((u) => !newUpdateIds.has(u.id)),
                   ...updated.updates.map((u: Update) => ({ ...u, repoId: repoIdStr })),
                 ]);
               }
               if (updated.releases?.length > 0) {
+                const newReleaseIds = new Set(updated.releases.map((r: Release) => r.id));
                 setReleases((prev) => [
-                  ...prev,
+                  ...prev.filter((r) => !newReleaseIds.has(r.id)),
                   ...updated.releases.map((r: Release) => ({ ...r, repoId: repoIdStr })),
                 ]);
               }
