@@ -33,6 +33,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Inbox View** | Default landing view showing only new updates since last visit, with "You're all caught up!" empty state |
 | **View Mode Selector** | Pill-shaped toggle to switch between Inbox, All Repos, and Starred views |
 | **Releases Filter** | Toggle releases on/off in the Levels filter dropdown |
+| **Sidebar Navigation** | Quick-access Feed, Repos, and Reports buttons at top of sidebar |
 | **User Menu** | Profile picture and name with dropdown for Manage Repos, Manage Reports, and logout |
 | **Manage Repos** | View all subscribed repos, sort by date or name, delete with confirmation |
 | **Manage Reports** | View all generated reports, sort by date or name, click to view, delete with confirmation |

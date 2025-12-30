@@ -1,4 +1,4 @@
-import { Settings, FileText, Plus, Loader2, AlertCircle, LayoutList } from 'lucide-react';
+import { Settings, FileText, Plus, Loader2, AlertCircle, LayoutList, FolderGit2 } from 'lucide-react';
 import type { Repo, Report } from '../types';
 
 interface SidebarProps {
@@ -6,10 +6,12 @@ interface SidebarProps {
   reports: Report[];
   selectedRepoId: string | null;
   selectedReportId: string | null;
+  viewMode: 'all' | 'starred' | 'inbox' | 'my-repos' | 'my-reports';
   onSelectRepo: (repoId: string | null) => void;
   onOpenRepoSettings: (repo: Repo) => void;
   onSelectReport: (reportId: string) => void;
   onCreateReport: () => void;
+  onSetViewMode: (mode: 'all' | 'starred' | 'inbox' | 'my-repos' | 'my-reports') => void;
 }
 
 export default function Sidebar({
@@ -17,27 +19,56 @@ export default function Sidebar({
   reports,
   selectedRepoId,
   selectedReportId,
+  viewMode,
   onSelectRepo,
   onOpenRepoSettings,
   onSelectReport,
   onCreateReport,
+  onSetViewMode,
 }: SidebarProps) {
-  const isFeedActive = !selectedRepoId && !selectedReportId;
+  const isFeedActive = !selectedRepoId && !selectedReportId && viewMode !== 'my-repos' && viewMode !== 'my-reports';
+  const isReposActive = viewMode === 'my-repos';
+  const isReportsActive = viewMode === 'my-reports';
 
   return (
     <aside className="w-64 bg-white border-r-3 border-black flex flex-col shrink-0 h-screen sticky top-0">
-      {/* Feed Button */}
-      <div className="p-4 shrink-0">
+      {/* Navigation Buttons */}
+      <div className="p-4 shrink-0 space-y-1">
         <button
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-display font-medium text-sm transition-all ${
             isFeedActive
-              ? 'bg-yellow border-2 border-black shadow-brutal-sm'
+              ? 'bg-pink border-2 border-black shadow-brutal-sm'
               : 'hover:bg-cream border-2 border-transparent'
           }`}
-          onClick={() => onSelectRepo(null)}
+          onClick={() => {
+            onSelectRepo(null);
+            onSetViewMode('inbox');
+          }}
         >
           <LayoutList size={18} />
           Feed
+        </button>
+        <button
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-display font-medium text-sm transition-all ${
+            isReposActive
+              ? 'bg-yellow border-2 border-black shadow-brutal-sm'
+              : 'hover:bg-cream border-2 border-transparent'
+          }`}
+          onClick={() => onSetViewMode('my-repos')}
+        >
+          <FolderGit2 size={18} />
+          Repos
+        </button>
+        <button
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-display font-medium text-sm transition-all ${
+            isReportsActive
+              ? 'bg-mint border-2 border-black shadow-brutal-sm'
+              : 'hover:bg-cream border-2 border-transparent'
+          }`}
+          onClick={() => onSetViewMode('my-reports')}
+        >
+          <FileText size={18} />
+          Reports
         </button>
       </div>
 

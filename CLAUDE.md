@@ -146,6 +146,7 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 - **Storage key**: `lastSeenAt-{userId}` in sessionStorage
 - **Inbox view**: Default landing view showing only "new" items (updates + releases). Filters (levels, categories, releases toggle) apply to inbox. Shows "You're all caught up!" when empty, "That's it!" at the bottom when items exist.
 - **Feed tabs**: Inbox (default) → All Repos → Starred. Inbox is first tab and default on login.
+- **Sidebar navigation**: Top of sidebar has Feed, Repos, and Reports buttons. Feed navigates to inbox view; Repos/Reports navigate to their respective management pages (`my-repos`/`my-reports` viewMode). Sidebar receives `viewMode` and `onSetViewMode` props from App.
 
 ## Classification Categories
 

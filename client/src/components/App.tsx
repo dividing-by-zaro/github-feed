@@ -737,6 +737,7 @@ export default function App() {
           reports={reports}
           selectedRepoId={selectedRepoId}
           selectedReportId={selectedReportId}
+          viewMode={viewMode}
           onSelectRepo={(repoId) => {
             setSelectedRepoId(repoId);
             setSelectedReportId(null);
@@ -748,6 +749,11 @@ export default function App() {
             setSelectedRepoId(null);
           }}
           onCreateReport={() => setShowCreateReportModal(true)}
+          onSetViewMode={(mode) => {
+            setViewMode(mode);
+            setSelectedRepoId(null);
+            setSelectedReportId(null);
+          }}
         />
 
         <main className="flex-1 p-6 max-w-4xl">
