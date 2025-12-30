@@ -39,7 +39,7 @@ import ReportViewer from './ReportViewer';
 import LoginPage from './LoginPage';
 import MyReposPage from './MyReposPage';
 import MyReportsPage from './MyReportsPage';
-import { Plus, ChevronDown, LogOut, FolderGit2, FileText, Infinity, Star, Rocket } from 'lucide-react';
+import { Plus, ChevronDown, LogOut, FolderGit2, FileText, Infinity, Star, Inbox } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout } = useAuth();
@@ -53,7 +53,7 @@ export default function App() {
 
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'all' | 'starred' | 'releases' | 'my-repos' | 'my-reports'>('all');
+  const [viewMode, setViewMode] = useState<'all' | 'starred' | 'inbox' | 'my-repos' | 'my-reports'>('inbox');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCreateReportModal, setShowCreateReportModal] = useState(false);
   const [repoSettingsTarget, setRepoSettingsTarget] = useState<Repo | null>(null);
@@ -78,7 +78,7 @@ export default function App() {
   const [filterCategories, setFilterCategories] = useState<Category[]>(
     user?.visibleCategories as Category[] || ALL_CATEGORIES
   );
-  const [showReleases] = useState(true);
+  const [showReleases, setShowReleases] = useState(true);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -470,8 +470,8 @@ export default function App() {
 
 
   const filteredFeed = useMemo(() => {
-    if (viewMode === 'releases') {
-      return [];
+    if (viewMode === 'inbox') {
+      return [];  // Inbox has its own filtered list
     }
 
     let filtered = [...updates];
@@ -533,7 +533,13 @@ export default function App() {
   ]);
 
   const filteredReleases = useMemo(() => {
-    if (viewMode === 'starred') {
+    // Inbox has its own filtered list; starred doesn't include releases
+    if (viewMode === 'starred' || viewMode === 'inbox') {
+      return [];
+    }
+
+    // Global releases filter from FilterBar
+    if (!showReleases) {
       return [];
     }
 
@@ -544,28 +550,77 @@ export default function App() {
       ? `${selectedRepo.owner}/${selectedRepo.name}`
       : null;
 
-    if (!selectedRepoKey && !showReleases) {
-      return [];
-    }
-
     let rel = [...releases];
+
     if (selectedRepoKey) {
+      // Single repo view - check that repo's showReleases setting
       if (selectedRepo?.showReleases === false) {
         return [];
       }
       const lowerKey = selectedRepoKey.toLowerCase();
       rel = rel.filter((r) => r.repoId.toLowerCase() === lowerKey);
     } else {
+      // All repos view - filter by each repo's showReleases setting
       rel = rel.filter((r) => {
         const releaseRepoLower = r.repoId.toLowerCase();
         const repo = repos.find((repo) => `${repo.owner}/${repo.name}`.toLowerCase() === releaseRepoLower);
         return repo?.showReleases !== false;
       });
     }
+
     return rel.sort(
       (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
   }, [releases, repos, selectedRepoId, viewMode, showReleases]);
+
+  // Inbox: filter both updates and releases to only "new" items
+  const filteredInbox = useMemo(() => {
+    if (viewMode !== 'inbox') {
+      return { updates: [] as Update[], releases: [] as Release[] };
+    }
+
+    const isNew = (item: { date?: string; publishedAt?: string }) => {
+      if (!sessionLastSeenAt) return true;
+      const activityDate = item.date ?? item.publishedAt;
+      if (!activityDate) return false;
+      return new Date(activityDate) > new Date(sessionLastSeenAt);
+    };
+
+    // Filter updates: new + significance + category filters
+    const inboxUpdates = updates
+      .filter((update) => {
+        if (!isNew(update)) return false;
+
+        const repo = repos.find((r) =>
+          `${r.owner}/${r.name}`.toLowerCase() === update.repoId.toLowerCase()
+        );
+        const repoSignificance = repo?.feedSignificance ?? filterSignificance;
+        const effectiveSignificance = filterSignificance.filter((s) =>
+          repoSignificance.includes(s)
+        );
+
+        return (
+          effectiveSignificance.includes(update.significance) &&
+          filterCategories.includes(update.category)
+        );
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Filter releases: new + global filter + per-repo showReleases setting
+    const inboxReleases = showReleases
+      ? releases
+          .filter((r) => {
+            if (!isNew(r)) return false;
+            const repo = repos.find((repo) =>
+              `${repo.owner}/${repo.name}`.toLowerCase() === r.repoId.toLowerCase()
+            );
+            return repo?.showReleases !== false;
+          })
+          .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+      : [];
+
+    return { updates: inboxUpdates, releases: inboxReleases };
+  }, [viewMode, updates, releases, repos, sessionLastSeenAt, filterSignificance, filterCategories, showReleases]);
 
   if (authLoading) {
     return (
@@ -740,9 +795,9 @@ export default function App() {
                   {!selectedRepoId && (
                     <div className="flex items-center bg-cream border-2 border-black rounded-full p-1.5">
                       {[
+                        { mode: 'inbox' as const, icon: Inbox, label: 'Inbox' },
                         { mode: 'all' as const, icon: Infinity, label: 'All Repos' },
                         { mode: 'starred' as const, icon: Star, label: 'Starred' },
-                        { mode: 'releases' as const, icon: Rocket, label: 'Releases' },
                       ].map(({ mode, icon: Icon, label }) => {
                         const isActive = viewMode === mode && !selectedRepoId && !selectedReportId;
                         return (
@@ -767,12 +822,14 @@ export default function App() {
                     </div>
                   )}
 
-                  {!selectedRepoId && viewMode !== 'releases' && (
+                  {!selectedRepoId && (
                     <FilterBar
                       selectedSignificance={filterSignificance}
                       selectedCategories={filterCategories}
                       onSignificanceChange={setFilterSignificance}
                       onCategoriesChange={setFilterCategories}
+                      showReleases={showReleases}
+                      onShowReleasesChange={setShowReleases}
                     />
                   )}
                 </div>
@@ -790,8 +847,8 @@ export default function App() {
                 </div>
               ) : (
                 <Feed
-                  updates={filteredFeed}
-                  releases={filteredReleases}
+                  updates={viewMode === 'inbox' ? filteredInbox.updates : filteredFeed}
+                  releases={viewMode === 'inbox' ? filteredInbox.releases : filteredReleases}
                   starredIds={starredIds}
                   onToggleStar={handleToggleStar}
                   onReleaseClick={(release, repoName) => setSelectedRelease({ release, repoName })}
@@ -799,6 +856,7 @@ export default function App() {
                   lastSeenAt={sessionLastSeenAt}
                   selectedRepo={selectedRepoId ? repos.find((r) => r.id === selectedRepoId) : null}
                   onFetchRecent={selectedRepoId ? handleFetchRecent : undefined}
+                  isInbox={viewMode === 'inbox'}
                 />
               )}
             </>

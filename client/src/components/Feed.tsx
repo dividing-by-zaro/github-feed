@@ -4,7 +4,7 @@ import { getRepoColor } from '../utils/colors';
 import UpdateCard from './UpdateCard';
 import DateHeader from './DateHeader';
 import GapIndicator from './GapIndicator';
-import { RefreshCw, Tag, Clock } from 'lucide-react';
+import { RefreshCw, Tag, Clock, Check } from 'lucide-react';
 
 interface FeedProps {
   updates: Update[];
@@ -16,6 +16,7 @@ interface FeedProps {
   lastSeenAt: string | null;
   selectedRepo?: Repo | null;
   onFetchRecent?: () => void;
+  isInbox?: boolean;
 }
 
 export default function Feed({
@@ -28,18 +29,19 @@ export default function Feed({
   lastSeenAt,
   selectedRepo,
   onFetchRecent,
+  isInbox,
 }: FeedProps) {
   // Derive loading state from selected repo's status
   const isFetching = selectedRepo?.status === 'pending' || selectedRepo?.status === 'indexing';
   const fetchFailed = selectedRepo?.status === 'failed';
 
-  // Check if item is "new" based on when it was indexed (createdAt), not activity date
-  const isNew = (item: { createdAt?: string; publishedAt?: string }) => {
+  // Check if item is "new" based on activity date (date for updates, publishedAt for releases)
+  // This ensures old PRs indexed by another user's report don't appear as "new"
+  const isNew = (item: { date?: string; publishedAt?: string }) => {
     if (!lastSeenAt) return true;
-    // Use createdAt for updates, publishedAt for releases (releases don't have createdAt yet)
-    const indexedAt = item.createdAt ?? item.publishedAt;
-    if (!indexedAt) return false;
-    return new Date(indexedAt) > new Date(lastSeenAt);
+    const activityDate = item.date ?? item.publishedAt;
+    if (!activityDate) return false;
+    return new Date(activityDate) > new Date(lastSeenAt);
   };
 
   const handleFetchRecent = () => {
@@ -124,6 +126,19 @@ export default function Feed({
             Load older updates
           </button>
         )}
+      </div>
+    );
+  }
+
+  // Inbox empty state - "You're all caught up!"
+  if (allItems.length === 0 && isInbox) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <div className="w-16 h-16 bg-mint rounded-full flex items-center justify-center border-3 border-black">
+          <Check size={28} />
+        </div>
+        <p className="font-display font-semibold text-lg">You're all caught up!</p>
+        <p className="text-gray-500">No new updates since your last visit</p>
       </div>
     );
   }
@@ -267,6 +282,12 @@ export default function Feed({
 
         return elements;
       })}
+
+      {isInbox && allItems.length > 0 && (
+        <div className="mt-6 py-4 text-center">
+          <p className="text-gray-400 text-sm font-medium">That's it! You're all caught up.</p>
+        </div>
+      )}
 
       {selectedRepo && onFetchRecent && allItems.length > 0 && (
         <div className="mt-4 p-5 bg-cream/50 border-2 border-dashed border-gray-300 rounded-lg">

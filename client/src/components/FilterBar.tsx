@@ -13,6 +13,8 @@ interface FilterBarProps {
   selectedCategories: Category[];
   onSignificanceChange: (significance: Significance[]) => void;
   onCategoriesChange: (categories: Category[]) => void;
+  showReleases: boolean;
+  onShowReleasesChange: (show: boolean) => void;
 }
 
 export default function FilterBar({
@@ -20,6 +22,8 @@ export default function FilterBar({
   selectedCategories,
   onSignificanceChange,
   onCategoriesChange,
+  showReleases,
+  onShowReleasesChange,
 }: FilterBarProps) {
   const [openDropdown, setOpenDropdown] = useState<'significance' | 'category' | null>(null);
 
@@ -40,16 +44,18 @@ export default function FilterBar({
   };
 
   const getSignificanceLabel = () => {
-    const count = selectedSignificance.length;
+    const count = selectedSignificance.length + (showReleases ? 1 : 0);
+    const total = ALL_SIGNIFICANCE.length + 1; // +1 for releases
     if (count === 0) return 'Levels';
-    if (count === ALL_SIGNIFICANCE.length) return 'All levels';
-    return `${count} levels`;
+    if (count === total) return 'All levels';
+    return `${count} ${count === 1 ? 'level' : 'levels'}`;
   };
 
   const getCategoryLabel = () => {
-    if (selectedCategories.length === 0) return 'Categories';
-    if (selectedCategories.length === ALL_CATEGORIES.length) return 'All categories';
-    return `${selectedCategories.length} categories`;
+    const count = selectedCategories.length;
+    if (count === 0) return 'Categories';
+    if (count === ALL_CATEGORIES.length) return 'All categories';
+    return `${count} ${count === 1 ? 'category' : 'categories'}`;
   };
 
   const hasActiveSignificance = selectedSignificance.length > 0;
@@ -90,15 +96,34 @@ export default function FilterBar({
 
               <div className="h-px bg-black/10" />
 
+              {/* Releases toggle */}
+              <label
+                className="flex items-center gap-3 px-4 py-3 hover:bg-cream cursor-pointer transition-colors"
+                onClick={() => onShowReleasesChange(!showReleases)}
+              >
+                <div className={`w-5 h-5 rounded border-2 border-black flex items-center justify-center ${showReleases ? 'bg-lavender' : 'bg-white'}`}>
+                  {showReleases && <Check size={12} strokeWidth={3} />}
+                </div>
+                <span className="font-display font-medium text-sm">Releases</span>
+              </label>
+
+              <div className="h-px bg-black/10" />
+
               <div className="flex gap-2 p-2">
                 <button
-                  onClick={() => onSignificanceChange([...ALL_SIGNIFICANCE])}
+                  onClick={() => {
+                    onSignificanceChange([...ALL_SIGNIFICANCE]);
+                    onShowReleasesChange(true);
+                  }}
                   className="flex-1 px-3 py-1.5 text-xs font-display font-semibold bg-cream hover:bg-cream-dark rounded-md transition-colors"
                 >
                   Select all
                 </button>
                 <button
-                  onClick={() => onSignificanceChange([])}
+                  onClick={() => {
+                    onSignificanceChange([]);
+                    onShowReleasesChange(false);
+                  }}
                   className="flex-1 px-3 py-1.5 text-xs font-display font-semibold bg-cream hover:bg-cream-dark rounded-md transition-colors"
                 >
                   Clear

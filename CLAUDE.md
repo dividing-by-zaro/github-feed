@@ -138,12 +138,14 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 - **Incremental updates**: Only new PRs/releases (not already in database) are fetched and classified
 - **Load older updates**: `POST /repos/:id/fetch-recent` paginates backwards from oldest known PR, fetching 10 older PRs each time
 
-## "New" Badge System
+## "New" Badge System & Inbox
 
 - **Session-based snapshots**: On first page load of a browser session, `user.lastSeenAt` is snapshotted to `sessionStorage` and server is updated to current time
-- **createdAt comparison**: "New" badges compare item's `createdAt` (when indexed) against session snapshot, not the item's activity date
+- **Activity date comparison**: "New" badges compare item's `date` (activity date for updates) or `publishedAt` (for releases) against session snapshot—NOT `createdAt` (indexing time). This prevents old PRs indexed by another user's report from appearing "new".
 - **Persistence within session**: Badges persist while navigating the site during same browser session; cleared when browser closes
 - **Storage key**: `lastSeenAt-{userId}` in sessionStorage
+- **Inbox view**: Default landing view showing only "new" items (updates + releases). Filters (levels, categories, releases toggle) apply to inbox. Shows "You're all caught up!" when empty, "That's it!" at the bottom when items exist.
+- **Feed tabs**: Inbox (default) → All Repos → Starred. Inbox is first tab and default on login.
 
 ## Classification Categories
 
