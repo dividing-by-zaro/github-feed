@@ -14,7 +14,7 @@ export default function LoginPage() {
         </div>
         <button
           onClick={login}
-          className="flex items-center gap-2 px-5 py-2.5 bg-black text-white font-display font-semibold text-sm rounded-full border-2 border-black hover:bg-gray-900 transition-all hover:shadow-brutal-sm active:translate-y-0.5"
+          className="flex items-center gap-2 px-5 py-2.5 bg-black text-white font-display font-semibold text-sm rounded-full border-2 border-black hover:bg-gray-900 transition-all hover:shadow-brutal-sm active:translate-y-0.5 cursor-pointer"
         >
           <svg viewBox="0 0 24 24" width="18" height="18">
             <path

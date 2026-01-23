@@ -204,7 +204,9 @@ export default function Sidebar({
 
                           {!isIndexing && (
                             <button
-                              className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all"
+                              className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 hover:brightness-90 transition-all ${
+                                selectedRepoId === repo.id ? 'group-hover:bg-lavender' : 'group-hover:bg-cream'
+                              }`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onOpenRepoSettings(repo);
