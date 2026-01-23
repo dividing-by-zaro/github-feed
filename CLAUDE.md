@@ -161,10 +161,18 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 ## Management Pages (MyReposPage, MyReportsPage)
 
 - **Stats dashboard**: Top section shows aggregate metrics (updates in 24h/7d/30d, total PRs, major changes for repos; completed/in-progress/failed counts for reports)
-- **Two-row card layout**: Row 1 has avatar, name/owner, action buttons; Row 2 has stats with icons (PRs, dates, major counts)
+- **Two-row card layout**: Row 1 has avatar, name/owner, action buttons; Row 2 has stats with icons (stars, PRs, dates)
 - **Quick actions**: Repos have GitHub link + Settings buttons; Reports have Download button (exports markdown)
 - **Clickable cards**: Cards navigate to repo feed or report view; delete handled in settings modal
 - **Repo settings modal**: Shows "Last indexed" timestamp, "Check for updates" button (non-destructive incremental refresh)
+
+## GitHub Stars Display
+
+- **Feed header**: Star count badge shown next to repo name when viewing single repo (yellow pill with star icon)
+- **My Repos page**: Star count in each repo card's stats row
+- **Format**: Compact format (e.g., `1.2k`, `15k`, `1.2m`)
+- **Updates**: Star count fetched on repo add, manual refresh, background stale refresh, and daily sweep
+- **Polling sync**: When repo finishes indexing, `starCount` is included in polling update so feed reflects new stars immediately
 
 ## Feed Filtering
 

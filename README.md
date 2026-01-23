@@ -42,7 +42,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) + daily background sweep |
 | **Load Older Updates** | Paginate backwards through PR history with clear "end of indexed" indicator |
 | **Check for Updates** | Manually trigger incremental update check for a repo |
-| **GitHub Stars** | Display repo star counts in feed header |
+| **GitHub Stars** | Display repo star counts in feed header and My Repos page (updated on refresh and daily sweep) |
 | **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
 | **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |
 | **Background Indexing** | Repos index in background with progress shown in sidebar; no blocking modal |
@@ -121,6 +121,7 @@ Add these API keys to your server `.env` file:
 - [x] Landing page with feature preview videos
 - [x] Inbox view as default landing page with new items only
 - [x] Collapsible sidebar with inline repo/report lists
+- [x] GitHub star counts in feed header and repo cards
 
 ## License
 

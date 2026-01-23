@@ -397,9 +397,9 @@ export default function App() {
           try {
             const updated = await getRepo(repo.id);
 
-            // Update repo in state
+            // Update repo in state (including starCount which may be fetched during indexing)
             setRepos((prev) =>
-              prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status, progress: updated.progress, error: updated.error } : r))
+              prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status, progress: updated.progress, error: updated.error, starCount: updated.starCount, avatarUrl: updated.avatarUrl, description: updated.description } : r))
             );
 
             // If just completed, add the updates and releases (filtering out any existing to prevent duplicates)

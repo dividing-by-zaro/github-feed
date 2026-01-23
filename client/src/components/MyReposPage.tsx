@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { Repo, Update } from '../types';
 import { getRepoColor } from '../utils/colors';
-import { ChevronDown, Settings, GitPullRequest, TrendingUp, Zap, Clock, Calendar } from 'lucide-react';
+import { ChevronDown, Settings, GitPullRequest, TrendingUp, Zap, Clock, Calendar, Star } from 'lucide-react';
 import { Github } from 'lucide-react';
 
 type SortOption = 'date-desc' | 'date-asc' | 'alpha-asc' | 'alpha-desc';
@@ -101,6 +101,14 @@ export default function MyReposPage({
       new Date(u.date).getTime() > weekAgo
     );
     return repoUpdates.reduce((sum, u) => sum + (u.prCount || 0), 0);
+  };
+
+  // Helper to format star count (e.g., 1234 -> "1.2k")
+  const formatStarCount = (count: number | null | undefined): string => {
+    if (count == null) return '—';
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}m`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+    return count.toString();
   };
 
   return (
@@ -275,6 +283,12 @@ export default function MyReposPage({
 
                   {/* Row 2: Stats */}
                   <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5">
+                      <Star size={14} className="text-yellow-500" />
+                      <span className="text-sm font-semibold text-gray-700">
+                        {formatStarCount(repo.starCount)}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <GitPullRequest size={14} className="text-gray-400" />
                       {prCount > 0 ? (

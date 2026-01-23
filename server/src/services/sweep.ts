@@ -36,12 +36,13 @@ async function indexRepoForSweep(
   // Fetch repo info
   const repoInfo = await github.getRepoInfo(owner, name);
 
-  // Update GlobalRepo with latest info
+  // Update GlobalRepo with latest info (including star count)
   await prisma.globalRepo.update({
     where: { id: globalRepoId },
     data: {
       description: repoInfo.description,
       avatarUrl: repoInfo.avatarUrl,
+      starCount: repoInfo.starCount,
     },
   });
 
