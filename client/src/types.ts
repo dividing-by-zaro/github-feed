@@ -71,6 +71,7 @@ export interface Repo {
   description?: string | null;
   avatarUrl?: string | null;
   starCount?: number | null;
+  docsUrl?: string | null;
   // Custom settings
   displayName?: string | null;
   customColor?: string | null;

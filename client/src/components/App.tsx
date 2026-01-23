@@ -39,7 +39,7 @@ import ReportViewer from './ReportViewer';
 import LoginPage from './LoginPage';
 import MyReposPage from './MyReposPage';
 import MyReportsPage from './MyReportsPage';
-import { Plus, ChevronDown, LogOut, FolderGit2, FileText, Star } from 'lucide-react';
+import { Plus, ChevronDown, LogOut, FolderGit2, FileText, Star, Book, ExternalLink } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout } = useAuth();
@@ -155,6 +155,7 @@ export default function App() {
         url: result.url,
         description: result.description,
         avatarUrl: result.avatarUrl,
+        docsUrl: result.docsUrl,
         displayName: result.displayName,
         customColor: result.customColor,
         feedSignificance: result.feedSignificance,
@@ -247,6 +248,20 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to check for updates');
       throw err;
+    }
+  };
+
+  const handleDocsUrlUpdate = (globalRepoId: string, docsUrl: string | null) => {
+    // Update all repos that share this globalRepoId
+    setRepos((prev) =>
+      prev.map((r) =>
+        r.globalRepoId === globalRepoId ? { ...r, docsUrl } : r
+      )
+    );
+
+    // Also update the settings modal target if it's open for this repo
+    if (repoSettingsTarget?.globalRepoId === globalRepoId) {
+      setRepoSettingsTarget((prev) => (prev ? { ...prev, docsUrl } : null));
     }
   };
 
@@ -397,9 +412,9 @@ export default function App() {
           try {
             const updated = await getRepo(repo.id);
 
-            // Update repo in state (including starCount which may be fetched during indexing)
+            // Update repo in state (including starCount and docsUrl which may be fetched during indexing)
             setRepos((prev) =>
-              prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status, progress: updated.progress, error: updated.error, starCount: updated.starCount, avatarUrl: updated.avatarUrl, description: updated.description, lastFetchedAt: updated.lastFetchedAt } : r))
+              prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status, progress: updated.progress, error: updated.error, starCount: updated.starCount, avatarUrl: updated.avatarUrl, description: updated.description, docsUrl: updated.docsUrl, lastFetchedAt: updated.lastFetchedAt } : r))
             );
 
             // If just completed, add the updates and releases (filtering out any existing to prevent duplicates)
@@ -774,27 +789,50 @@ export default function App() {
                     return count.toString();
                   };
                   return (
-                    <div className="flex items-center justify-between gap-4 mb-4">
-                      <div className="flex items-center gap-3">
+                    <>
+                      {/* Row 1: Title + filters */}
+                      <div className="flex items-center justify-between gap-4 mb-2">
                         <h1 className="text-3xl font-bold">
                           {selectedRepo?.displayName || selectedRepo?.name || 'Repository'}
                         </h1>
-                        {selectedRepo?.starCount != null && (
-                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow/20 border-2 border-black rounded-full">
-                            <Star size={16} className="text-yellow-600 fill-yellow-400" />
-                            <span className="text-sm font-bold">{formatStarCount(selectedRepo.starCount)}</span>
-                          </div>
-                        )}
+                        <FilterBar
+                          selectedSignificance={filterSignificance}
+                          selectedCategories={filterCategories}
+                          onSignificanceChange={setFilterSignificance}
+                          onCategoriesChange={setFilterCategories}
+                          showReleases={showReleases}
+                          onShowReleasesChange={setShowReleases}
+                        />
                       </div>
-                      <FilterBar
-                        selectedSignificance={filterSignificance}
-                        selectedCategories={filterCategories}
-                        onSignificanceChange={setFilterSignificance}
-                        onCategoriesChange={setFilterCategories}
-                        showReleases={showReleases}
-                        onShowReleasesChange={setShowReleases}
-                      />
-                    </div>
+
+                      {/* Row 2: Stars + Docs link (subtle) */}
+                      {selectedRepo && (selectedRepo.starCount != null || selectedRepo.docsUrl) && (
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                          {selectedRepo.starCount != null && (
+                            <span className="flex items-center gap-1.5">
+                              <Star size={14} className="text-yellow-500 fill-yellow-400" />
+                              <span>{formatStarCount(selectedRepo.starCount)}</span>
+                            </span>
+                          )}
+                          {selectedRepo.docsUrl && (
+                            <a
+                              href={selectedRepo.docsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-gray-500 hover:text-purple-600 transition-colors"
+                            >
+                              <Book size={14} />
+                              <span>{selectedRepo.docsUrl}</span>
+                            </a>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Row 3: Description (full) */}
+                      {selectedRepo?.description && (
+                        <p className="text-sm text-gray-600 mb-4">{selectedRepo.description}</p>
+                      )}
+                    </>
                   );
                 })()}
 
@@ -861,6 +899,7 @@ export default function App() {
           onSave={handleUpdateRepo}
           onDelete={handleRemoveRepo}
           onRefresh={handleRefreshRepo}
+          onDocsUrlUpdate={handleDocsUrlUpdate}
           onClose={() => setRepoSettingsTarget(null)}
         />
       )}

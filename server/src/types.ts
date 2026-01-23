@@ -76,6 +76,7 @@ export interface RepoInfo {
   avatarUrl: string;
   pushedAt: string | null;
   starCount: number;
+  homepage: string | null;
 }
 
 export interface AnalyzeRequest {

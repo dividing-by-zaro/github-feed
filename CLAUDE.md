@@ -82,7 +82,7 @@ github-feed/
 ## Database Schema
 
 **Global tables** (shared across all users):
-- `GlobalRepo` - Repo metadata, `lastFetchedAt` for staleness check, `subscriberCount` for sweep prioritization, `starCount` for GitHub stars display
+- `GlobalRepo` - Repo metadata, `lastFetchedAt` for staleness check, `subscriberCount` for sweep prioritization, `starCount` for GitHub stars display, `docsUrl` for documentation link (community-editable), `homepage` from GitHub API
 - `GlobalUpdate` - Semantic updates (grouped PRs) with AI-generated summaries. Has `groupHash` field (SHA256 of sorted PR numbers) with unique constraint `[globalRepoId, groupHash]` to prevent duplicates.
 - `GlobalPR` - Individual PRs linked to their parent Update. Has unique constraint `[globalRepoId, prNumber]`.
 - `GlobalRelease` - Releases with AI-generated summaries
@@ -168,11 +168,21 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 
 ## GitHub Stars Display
 
-- **Feed header**: Star count badge shown next to repo name when viewing single repo (yellow pill with star icon)
+- **Feed header**: Star count shown subtly next to repo name when viewing single repo
 - **My Repos page**: Star count in each repo card's stats row
 - **Format**: Compact format (e.g., `1.2k`, `15k`, `1.2m`)
 - **Updates**: Star count fetched on repo add, manual refresh, background stale refresh, and daily sweep
 - **Polling sync**: When repo finishes indexing, `starCount` is included in polling update so feed reflects new stars immediately
+
+## Documentation URLs
+
+- **Community resource**: `docsUrl` stored on `GlobalRepo`, editable by any subscriber with warning
+- **Auto-detection**: On indexing, checks GitHub homepage and `{owner}.github.io/{name}` for docs
+- **Manual override**: Users can set custom docs URL via repo settings modal (three-step flow: view → confirm → edit)
+- **URL validation**: `server/src/services/urlValidator.ts` validates HTTPS and blocks private/internal IPs (SSRF protection)
+- **Preservation**: Manually set URLs are never overwritten by auto-detection
+- **Feed display**: Shown subtly below repo title with full URL visible
+- **API endpoint**: `PUT /api/repos/:globalRepoId/docs` for updating docs URL
 
 ## Feed Filtering
 
@@ -195,6 +205,7 @@ Key endpoints in `server/src/routes/repos.ts`:
 - `POST /api/repos` - Add repo (with robust URL parsing)
 - `GET /api/repos/feed/all` - Get all feed data, refreshes stale repos
 - `POST /api/repos/:id/refresh` - Check for new updates since last fetch (incremental, runs in background)
+- `PUT /api/repos/:globalRepoId/docs` - Update documentation URL (validates HTTPS, blocks internal IPs)
 
 Reports endpoints in `server/src/routes/reports.ts`:
 - `GET /api/reports` - List user's reports

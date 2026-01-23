@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Repo } from '../types';
 import { getRepoColor } from '../utils/colors';
-import { X, Trash2, RefreshCw, Clock } from 'lucide-react';
+import { updateRepoDocsUrl } from '../api';
+import { X, Trash2, RefreshCw, Clock, Book } from 'lucide-react';
 
 // Format relative time (e.g., "2 hours ago", "3 days ago")
 function formatRelativeTime(dateString: string | null | undefined): string {
@@ -40,6 +41,7 @@ interface RepoSettingsModalProps {
   onSave: (repo: Repo) => void;
   onDelete: (repoId: string) => void;
   onRefresh: (repoId: string) => Promise<void>;
+  onDocsUrlUpdate?: (globalRepoId: string, docsUrl: string | null) => void;
   onClose: () => void;
 }
 
@@ -48,6 +50,7 @@ export default function RepoSettingsModal({
   onSave,
   onDelete,
   onRefresh,
+  onDocsUrlUpdate,
   onClose,
 }: RepoSettingsModalProps) {
   const [displayName, setDisplayName] = useState(repo.displayName || '');
@@ -56,6 +59,19 @@ export default function RepoSettingsModal({
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Docs URL editing state: 'view' | 'confirm' | 'edit'
+  const [docsEditMode, setDocsEditMode] = useState<'view' | 'confirm' | 'edit'>('view');
+  const [docsUrl, setDocsUrl] = useState(repo.docsUrl || '');
+  const [docsUrlError, setDocsUrlError] = useState<string | null>(null);
+  const [isSavingDocsUrl, setIsSavingDocsUrl] = useState(false);
+
+  // Sync docsUrl state when repo prop changes (e.g., after save)
+  useEffect(() => {
+    if (docsEditMode !== 'edit') {
+      setDocsUrl(repo.docsUrl || '');
+    }
+  }, [repo.docsUrl, docsEditMode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +103,33 @@ export default function RepoSettingsModal({
     }
   };
 
+  const handleSaveDocsUrl = async () => {
+    setDocsUrlError(null);
+    setIsSavingDocsUrl(true);
+
+    try {
+      const urlToSave = docsUrl.trim() || null;
+      const result = await updateRepoDocsUrl(repo.globalRepoId, urlToSave);
+
+      // Update parent state
+      if (onDocsUrlUpdate) {
+        onDocsUrlUpdate(repo.globalRepoId, result.docsUrl);
+      }
+
+      setDocsEditMode('view');
+    } catch (error) {
+      setDocsUrlError(error instanceof Error ? error.message : 'Failed to update docs URL');
+    } finally {
+      setIsSavingDocsUrl(false);
+    }
+  };
+
+  const handleCancelDocsEdit = () => {
+    setDocsEditMode('view');
+    setDocsUrl(repo.docsUrl || '');
+    setDocsUrlError(null);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
@@ -94,7 +137,7 @@ export default function RepoSettingsModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b-2 border-black/10 sticky top-0 bg-white z-10">
+        <div className="flex items-center justify-between px-6 pt-6 pb-2 sticky top-0 bg-white z-10">
           <div>
             <h2 className="font-display text-xl font-bold">Repo Settings</h2>
             <p className="text-sm text-gray-500 font-mono">{repo.owner}/{repo.name}</p>
@@ -105,6 +148,100 @@ export default function RepoSettingsModal({
           >
             <X size={20} />
           </button>
+        </div>
+
+        {/* Repo Info Section */}
+        <div className="px-6 pt-2 pb-4 border-b-2 border-black/10 space-y-3">
+          {/* Description (read-only, from GitHub) */}
+          {repo.description && (
+            <p className="text-sm text-gray-600">{repo.description}</p>
+          )}
+
+          {/* Docs URL with inline edit */}
+          <div className="space-y-2">
+            {docsEditMode === 'view' && (
+              <div className="flex items-center gap-2">
+                <Book size={14} className="text-gray-500 shrink-0" />
+                {repo.docsUrl ? (
+                  <a
+                    href={repo.docsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-purple-600 hover:underline truncate"
+                  >
+                    {repo.docsUrl}
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-400 italic">No docs link</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDocsEditMode('confirm')}
+                  className="text-xs text-gray-500 hover:text-gray-700 underline shrink-0 cursor-pointer"
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+
+            {docsEditMode === 'confirm' && (
+              <div className="flex items-center justify-between gap-3 p-3 bg-yellow/20 rounded-lg border border-yellow-500">
+                <p className="text-sm text-gray-700">
+                  This updates the docs URL for everyone who subscribes to this repo.
+                </p>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setDocsEditMode('edit')}
+                    className="brutal-btn brutal-btn-primary text-xs py-1.5 cursor-pointer"
+                  >
+                    Okay
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDocsEditMode('view')}
+                    className="brutal-btn brutal-btn-secondary text-xs py-1.5 cursor-pointer"
+                  >
+                    Go back
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {docsEditMode === 'edit' && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={docsUrl}
+                    onChange={(e) => setDocsUrl(e.target.value)}
+                    placeholder="https://docs.example.com"
+                    className="brutal-input text-sm flex-1"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveDocsUrl}
+                    disabled={isSavingDocsUrl}
+                    className="brutal-btn brutal-btn-primary text-xs py-1.5 cursor-pointer"
+                  >
+                    {isSavingDocsUrl ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelDocsEdit}
+                    className="brutal-btn brutal-btn-secondary text-xs py-1.5 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {docsUrlError && (
+                  <p className="text-xs text-coral">{docsUrlError}</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Form */}

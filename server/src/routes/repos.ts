@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { GitHubService } from '../services/github.js';
 import { ClassifierService } from '../services/classifier.js';
 import { requireAuth, getUser } from '../auth/middleware.js';
+import { validateDocsUrl, detectDocsUrl, validateUrlExists } from '../services/urlValidator.js';
 import type { GlobalRepo } from '@prisma/client';
 import type { Update, PRInfo, PRData } from '../types.js';
 
@@ -147,6 +148,12 @@ async function indexRepo(
   if (onProgress) await onProgress('Fetching repository info...');
   const repoInfo = await github.getRepoInfo(owner, name);
 
+  // Auto-detect docs URL if not already set
+  let detectedDocsUrl: string | null = null;
+  if (!globalRepo.docsUrl) {
+    detectedDocsUrl = await detectDocsUrl(repoInfo.homepage, owner, name);
+  }
+
   // Update GlobalRepo with latest info
   await prisma.globalRepo.update({
     where: { id: globalRepo.id },
@@ -154,6 +161,10 @@ async function indexRepo(
       description: repoInfo.description,
       avatarUrl: repoInfo.avatarUrl,
       starCount: repoInfo.starCount,
+      homepage: repoInfo.homepage,
+      ...(detectedDocsUrl && !globalRepo.docsUrl
+        ? { docsUrl: detectedDocsUrl, docsValidatedAt: new Date() }
+        : {}),
     },
   });
 
@@ -597,6 +608,7 @@ router.get('/', async (req: Request, res: Response) => {
       description: ur.globalRepo.description,
       avatarUrl: ur.globalRepo.avatarUrl,
       starCount: ur.globalRepo.starCount,
+      docsUrl: ur.globalRepo.docsUrl,
       displayName: ur.displayName,
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,
@@ -768,6 +780,7 @@ router.post('/', async (req: Request, res: Response) => {
       description: userRepo.globalRepo.description,
       avatarUrl: userRepo.globalRepo.avatarUrl,
       starCount: userRepo.globalRepo.starCount,
+      docsUrl: userRepo.globalRepo.docsUrl,
       displayName: userRepo.displayName,
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
@@ -823,6 +836,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       description: userRepo.globalRepo.description,
       avatarUrl: userRepo.globalRepo.avatarUrl,
       starCount: userRepo.globalRepo.starCount,
+      docsUrl: userRepo.globalRepo.docsUrl,
       displayName: userRepo.displayName,
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
@@ -886,6 +900,48 @@ router.put('/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error updating repo:', error);
     res.status(500).json({ error: 'Failed to update repo' });
+  }
+});
+
+// Update docs URL for a GlobalRepo (community resource)
+router.put('/:globalRepoId/docs', async (req: Request, res: Response) => {
+  try {
+    const { globalRepoId } = req.params;
+    const { docsUrl } = req.body;
+
+    // Validate URL (returns sanitized or null)
+    const sanitized = validateDocsUrl(docsUrl);
+    if (docsUrl && !sanitized) {
+      return res.status(400).json({
+        error: 'Invalid URL. Must be HTTPS and from an allowed documentation host.',
+      });
+    }
+
+    // Verify URL exists
+    if (sanitized) {
+      const exists = await validateUrlExists(sanitized);
+      if (!exists) {
+        return res.status(400).json({ error: 'URL could not be reached.' });
+      }
+    }
+
+    // Update GlobalRepo
+    const updated = await prisma.globalRepo.update({
+      where: { id: globalRepoId },
+      data: {
+        docsUrl: sanitized,
+        docsValidatedAt: sanitized ? new Date() : null,
+      },
+    });
+
+    return res.json({
+      id: updated.id,
+      docsUrl: updated.docsUrl,
+      docsValidatedAt: updated.docsValidatedAt?.toISOString() ?? null,
+    });
+  } catch (error) {
+    console.error('Error updating docs URL:', error);
+    res.status(500).json({ error: 'Failed to update documentation URL' });
   }
 });
 
@@ -1096,6 +1152,7 @@ router.get('/feed/all', async (req: Request, res: Response) => {
       description: ur.globalRepo.description,
       avatarUrl: ur.globalRepo.avatarUrl,
       starCount: ur.globalRepo.starCount,
+      docsUrl: ur.globalRepo.docsUrl,
       displayName: ur.displayName,
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,

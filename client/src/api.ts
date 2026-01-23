@@ -162,6 +162,17 @@ export async function searchIndexedRepos(query: string): Promise<IndexedRepo[]> 
   return apiFetch(`/api/repos/search?q=${encodeURIComponent(query)}`);
 }
 
+// Update docs URL for a GlobalRepo (community resource)
+export async function updateRepoDocsUrl(
+  globalRepoId: string,
+  docsUrl: string | null
+): Promise<{ id: string; docsUrl: string | null; docsValidatedAt: string | null }> {
+  return apiFetch(`/api/repos/${encodeURIComponent(globalRepoId)}/docs`, {
+    method: 'PUT',
+    body: JSON.stringify({ docsUrl }),
+  });
+}
+
 // ============ REPORT ENDPOINTS ============
 
 export async function getReports(): Promise<Report[]> {

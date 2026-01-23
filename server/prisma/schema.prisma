@@ -74,6 +74,9 @@ model GlobalRepo {
   description     String?
   avatarUrl       String?
   starCount       Int?
+  homepage        String?         // Raw homepage URL from GitHub API
+  docsUrl         String?         // Resolved/validated documentation URL
+  docsValidatedAt DateTime?       // When URL was last validated
   subscriberCount Int             @default(0)
   createdAt       DateTime        @default(now())
   lastFetchedAt   DateTime?
