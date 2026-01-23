@@ -75,6 +75,7 @@ export interface RepoInfo {
   defaultBranch: string;
   avatarUrl: string;
   pushedAt: string | null;
+  starCount: number;
 }
 
 export interface AnalyzeRequest {

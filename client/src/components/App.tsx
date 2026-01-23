@@ -39,7 +39,7 @@ import ReportViewer from './ReportViewer';
 import LoginPage from './LoginPage';
 import MyReposPage from './MyReposPage';
 import MyReportsPage from './MyReportsPage';
-import { Plus, ChevronDown, LogOut, FolderGit2, FileText } from 'lucide-react';
+import { Plus, ChevronDown, LogOut, FolderGit2, FileText, Star } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout } = useAuth();
@@ -233,49 +233,19 @@ export default function App() {
 
   const handleRefreshRepo = async (repoId: string) => {
     try {
-      const repo = repos.find((r) => r.id === repoId);
-      if (!repo) return;
+      // Call API - returns immediately, runs in background
+      await refreshRepo(repoId);
 
-      const result = await refreshRepo(repoId);
-      const repoIdStr = `${result.owner}/${result.name}`;
-
-      // Update repo in state
+      // Update local repo state to trigger polling
       setRepos((prev) =>
         prev.map((r) =>
           r.id === repoId
-            ? {
-                ...r,
-                id: result.id,
-                owner: result.owner,
-                name: result.name,
-                url: result.url,
-                description: result.description,
-                avatarUrl: result.avatarUrl,
-                displayName: result.displayName,
-                customColor: result.customColor,
-                feedSignificance: result.feedSignificance,
-                showReleases: result.showReleases,
-                status: result.status,
-                progress: result.progress,
-                error: result.error,
-                lastFetchedAt: result.lastFetchedAt,
-              }
+            ? { ...r, status: 'pending' as const, progress: 'Starting...' }
             : r
         )
       );
-
-      // Remove old updates/releases for this repo and add new ones
-      const oldRepoKey = `${repo.owner}/${repo.name}`;
-      setUpdates((prev) => [
-        ...prev.filter((u) => u.repoId !== oldRepoKey),
-        ...result.updates.map((u: Update) => ({ ...u, repoId: repoIdStr })),
-      ]);
-      setReleases((prev) => [
-        ...prev.filter((r) => r.repoId !== oldRepoKey),
-        ...result.releases.map((r: Release) => ({ ...r, repoId: repoIdStr })),
-      ]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh repo');
+      setError(err instanceof Error ? err.message : 'Failed to check for updates');
       throw err;
     }
   };
@@ -427,9 +397,9 @@ export default function App() {
           try {
             const updated = await getRepo(repo.id);
 
-            // Update repo in state
+            // Update repo in state (including starCount which may be fetched during indexing)
             setRepos((prev) =>
-              prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status, progress: updated.progress, error: updated.error } : r))
+              prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status, progress: updated.progress, error: updated.error, starCount: updated.starCount, avatarUrl: updated.avatarUrl, description: updated.description } : r))
             );
 
             // If just completed, add the updates and releases (filtering out any existing to prevent duplicates)
@@ -566,8 +536,23 @@ export default function App() {
       return { updates: [] as Update[], releases: [] as Release[] };
     }
 
-    const isNew = (item: { date?: string; publishedAt?: string }) => {
+    // An item is "new" if:
+    // 1. Activity happened after lastSeenAt, OR
+    // 2. User subscribed to the repo after lastSeenAt (all content from new repos is "new")
+    const isNewForRepo = (item: { date?: string; publishedAt?: string; repoId: string }) => {
       if (!sessionLastSeenAt) return true;
+
+      // Find the repo to check subscription date
+      const repo = repos.find((r) =>
+        `${r.owner}/${r.name}`.toLowerCase() === item.repoId.toLowerCase()
+      );
+
+      // If user subscribed after lastSeenAt, all content from this repo is new
+      if (repo?.createdAt && new Date(repo.createdAt) > new Date(sessionLastSeenAt)) {
+        return true;
+      }
+
+      // Otherwise, check if activity happened after lastSeenAt
       const activityDate = item.date ?? item.publishedAt;
       if (!activityDate) return false;
       return new Date(activityDate) > new Date(sessionLastSeenAt);
@@ -576,7 +561,7 @@ export default function App() {
     // Filter updates: new + significance + category filters
     const inboxUpdates = updates
       .filter((update) => {
-        if (!isNew(update)) return false;
+        if (!isNewForRepo(update)) return false;
 
         const repo = repos.find((r) =>
           `${r.owner}/${r.name}`.toLowerCase() === update.repoId.toLowerCase()
@@ -597,7 +582,7 @@ export default function App() {
     const inboxReleases = showReleases
       ? releases
           .filter((r) => {
-            if (!isNew(r)) return false;
+            if (!isNewForRepo(r)) return false;
             const repo = repos.find((repo) =>
               `${repo.owner}/${repo.name}`.toLowerCase() === r.repoId.toLowerCase()
             );
@@ -780,23 +765,38 @@ export default function App() {
             <>
               {/* Page Header */}
               <div className="mb-6">
-                {selectedRepoId && (
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <h1 className="text-3xl font-bold">
-                      {repos.find((r) => r.id === selectedRepoId)?.displayName ||
-                        repos.find((r) => r.id === selectedRepoId)?.name ||
-                        'Repository'}
-                    </h1>
-                    <FilterBar
-                      selectedSignificance={filterSignificance}
-                      selectedCategories={filterCategories}
-                      onSignificanceChange={setFilterSignificance}
-                      onCategoriesChange={setFilterCategories}
-                      showReleases={showReleases}
-                      onShowReleasesChange={setShowReleases}
-                    />
-                  </div>
-                )}
+                {selectedRepoId && (() => {
+                  const selectedRepo = repos.find((r) => r.id === selectedRepoId);
+                  const formatStarCount = (count: number | null | undefined): string => {
+                    if (count == null) return '';
+                    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}m`;
+                    if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+                    return count.toString();
+                  };
+                  return (
+                    <div className="flex items-center justify-between gap-4 mb-4">
+                      <div className="flex items-center gap-3">
+                        <h1 className="text-3xl font-bold">
+                          {selectedRepo?.displayName || selectedRepo?.name || 'Repository'}
+                        </h1>
+                        {selectedRepo?.starCount != null && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow/20 border-2 border-black rounded-full">
+                            <Star size={16} className="text-yellow-600 fill-yellow-400" />
+                            <span className="text-sm font-bold">{formatStarCount(selectedRepo.starCount)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <FilterBar
+                        selectedSignificance={filterSignificance}
+                        selectedCategories={filterCategories}
+                        onSignificanceChange={setFilterSignificance}
+                        onCategoriesChange={setFilterCategories}
+                        showReleases={showReleases}
+                        onShowReleasesChange={setShowReleases}
+                      />
+                    </div>
+                  );
+                })()}
 
                 {!selectedRepoId && (
                   <div className="flex items-center justify-between gap-4 mb-4">

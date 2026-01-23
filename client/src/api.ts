@@ -135,7 +135,12 @@ export async function fetchRecentUpdates(repoId: string): Promise<FetchRecentRes
   });
 }
 
-export async function refreshRepo(repoId: string): Promise<RepoWithData> {
+export interface RefreshResponse {
+  status: string;
+  message: string;
+}
+
+export async function refreshRepo(repoId: string): Promise<RefreshResponse> {
   return apiFetch(`/api/repos/${repoId}/refresh`, {
     method: 'POST',
   });

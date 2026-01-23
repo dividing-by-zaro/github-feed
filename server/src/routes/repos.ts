@@ -153,6 +153,7 @@ async function indexRepo(
     data: {
       description: repoInfo.description,
       avatarUrl: repoInfo.avatarUrl,
+      starCount: repoInfo.starCount,
     },
   });
 
@@ -595,6 +596,7 @@ router.get('/', async (req: Request, res: Response) => {
       url: ur.globalRepo.url,
       description: ur.globalRepo.description,
       avatarUrl: ur.globalRepo.avatarUrl,
+      starCount: ur.globalRepo.starCount,
       displayName: ur.displayName,
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,
@@ -712,10 +714,17 @@ router.post('/', async (req: Request, res: Response) => {
           url: repoUrl,
           description: repoInfo.description,
           avatarUrl: repoInfo.avatarUrl,
+          starCount: repoInfo.starCount,
+          subscriberCount: 1, // First subscriber
         },
       });
       needsIndexing = true;
     } else {
+      // Increment subscriber count for existing repo
+      await prisma.globalRepo.update({
+        where: { id: globalRepo.id },
+        data: { subscriberCount: { increment: 1 } },
+      });
       // Check if stale
       const isStale =
         !globalRepo.lastFetchedAt ||
@@ -758,6 +767,7 @@ router.post('/', async (req: Request, res: Response) => {
       url: userRepo.globalRepo.url,
       description: userRepo.globalRepo.description,
       avatarUrl: userRepo.globalRepo.avatarUrl,
+      starCount: userRepo.globalRepo.starCount,
       displayName: userRepo.displayName,
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
@@ -812,6 +822,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       url: userRepo.globalRepo.url,
       description: userRepo.globalRepo.description,
       avatarUrl: userRepo.globalRepo.avatarUrl,
+      starCount: userRepo.globalRepo.starCount,
       displayName: userRepo.displayName,
       customColor: userRepo.customColor,
       feedSignificance: userRepo.feedSignificance,
@@ -884,13 +895,26 @@ router.delete('/:id', async (req: Request, res: Response) => {
     const user = getUser(req);
     const { id } = req.params;
 
-    const result = await prisma.userRepo.deleteMany({
+    // First find the userRepo to get the globalRepoId
+    const userRepo = await prisma.userRepo.findFirst({
       where: { id, userId: user.id },
+      select: { globalRepoId: true },
     });
 
-    if (result.count === 0) {
+    if (!userRepo) {
       return res.status(404).json({ error: 'Repo not found' });
     }
+
+    // Delete the subscription
+    await prisma.userRepo.delete({
+      where: { id },
+    });
+
+    // Decrement subscriber count on the global repo
+    await prisma.globalRepo.update({
+      where: { id: userRepo.globalRepoId },
+      data: { subscriberCount: { decrement: 1 } },
+    });
 
     res.json({ success: true });
   } catch (error) {
@@ -899,20 +923,11 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// Refresh repo - delete all data and re-index fresh
+// Check for updates - fetch new updates since last fetch (incremental, runs in background)
 router.post('/:id/refresh', async (req: Request, res: Response) => {
   try {
     const user = getUser(req);
     const { id } = req.params;
-
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    const githubToken = process.env.GITHUB_TOKEN;
-
-    if (!openaiApiKey) {
-      return res
-        .status(500)
-        .json({ error: 'OpenAI API key not configured on server' });
-    }
 
     // Find the user's repo
     const userRepo = await prisma.userRepo.findFirst({
@@ -924,88 +939,36 @@ router.post('/:id/refresh', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Repo not found' });
     }
 
-    const globalRepo = userRepo.globalRepo;
-    const { owner, name } = globalRepo;
-    const repoIdStr = `${owner}/${name}`;
-
-    console.log(`Refreshing repo ${repoIdStr} - deleting existing data`);
-
-    // Delete all existing data for this repo
-    await prisma.$transaction([
-      // Delete GlobalPRs (must be first due to FK constraint)
-      prisma.globalPR.deleteMany({
-        where: { globalRepoId: globalRepo.id },
-      }),
-      // Delete GlobalUpdates
-      prisma.globalUpdate.deleteMany({
-        where: { globalRepoId: globalRepo.id },
-      }),
-      // Delete GlobalReleases
-      prisma.globalRelease.deleteMany({
-        where: { globalRepoId: globalRepo.id },
-      }),
-      // Reset lastFetchedAt to null
-      prisma.globalRepo.update({
-        where: { id: globalRepo.id },
-        data: { lastFetchedAt: null },
-      }),
-    ]);
-
-    console.log(`Deleted existing data for ${repoIdStr}, re-indexing...`);
-
-    // Re-index the repo fresh (30 days back, like initial add)
-    const github = new GitHubService(githubToken || undefined);
-    const classifier = new ClassifierService(openaiApiKey);
-    const sinceDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-    await indexRepo(globalRepo, github, classifier, sinceDate);
-
-    // Fetch the newly created data
-    const refreshedRepo = await prisma.userRepo.findUnique({
-      where: { id },
-      include: {
-        globalRepo: {
-          include: {
-            updates: {
-              orderBy: { date: 'desc' },
-              include: { prs: true },
-            },
-            releases: { orderBy: { publishedAt: 'desc' } },
-          },
-        },
-      },
-    });
-
-    if (!refreshedRepo) {
-      return res.status(404).json({ error: 'Repo not found after refresh' });
+    // Check if already indexing
+    if (userRepo.status === 'pending' || userRepo.status === 'indexing') {
+      return res.status(409).json({ error: 'Already checking for updates' });
     }
 
-    console.log(`Finished refreshing ${repoIdStr}`);
+    const globalRepo = userRepo.globalRepo;
+    const sinceDate = globalRepo.lastFetchedAt || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    // Format response
+    console.log(`Checking for updates: ${globalRepo.owner}/${globalRepo.name} since ${sinceDate.toISOString()}`);
+
+    // Set status to pending immediately
+    await prisma.userRepo.update({
+      where: { id: userRepo.id },
+      data: { status: 'pending', progress: 'Starting...', error: null },
+    });
+
+    // Fire background indexing (don't await!)
+    indexRepoInBackground(userRepo.id, globalRepo.id, sinceDate, true).catch(
+      (err) => console.error('Background refresh error:', err)
+    );
+
+    // Return immediately with updated status
     res.json({
-      id: refreshedRepo.id,
-      globalRepoId: refreshedRepo.globalRepo.id,
-      owner: refreshedRepo.globalRepo.owner,
-      name: refreshedRepo.globalRepo.name,
-      url: refreshedRepo.globalRepo.url,
-      description: refreshedRepo.globalRepo.description,
-      avatarUrl: refreshedRepo.globalRepo.avatarUrl,
-      displayName: refreshedRepo.displayName,
-      customColor: refreshedRepo.customColor,
-      feedSignificance: refreshedRepo.feedSignificance,
-      showReleases: refreshedRepo.showReleases,
-      lastFetchedAt: refreshedRepo.globalRepo.lastFetchedAt?.toISOString() ?? null,
-      createdAt: refreshedRepo.createdAt.toISOString(),
-      updates: refreshedRepo.globalRepo.updates.map((u) => formatUpdate(u, repoIdStr)),
-      releases: refreshedRepo.globalRepo.releases
-        .filter((r) => r.isClusterHead)
-        .map((r) => formatRelease(r, repoIdStr)),
+      status: 'pending',
+      message: 'Checking for updates in background',
     });
   } catch (error) {
-    console.error('Error refreshing repo:', error);
+    console.error('Error starting refresh:', error);
     res.status(500).json({
-      error: error instanceof Error ? error.message : 'Failed to refresh repo',
+      error: error instanceof Error ? error.message : 'Failed to start refresh',
     });
   }
 });
@@ -1132,6 +1095,7 @@ router.get('/feed/all', async (req: Request, res: Response) => {
       url: ur.globalRepo.url,
       description: ur.globalRepo.description,
       avatarUrl: ur.globalRepo.avatarUrl,
+      starCount: ur.globalRepo.starCount,
       displayName: ur.displayName,
       customColor: ur.customColor,
       feedSignificance: ur.feedSignificance,

@@ -35,10 +35,23 @@ export default function Feed({
   const isFetching = selectedRepo?.status === 'pending' || selectedRepo?.status === 'indexing';
   const fetchFailed = selectedRepo?.status === 'failed';
 
-  // Check if item is "new" based on activity date (date for updates, publishedAt for releases)
-  // This ensures old PRs indexed by another user's report don't appear as "new"
-  const isNew = (item: { date?: string; publishedAt?: string }) => {
+  // Check if item is "new" based on:
+  // 1. Activity date (date for updates, publishedAt for releases) > lastSeenAt, OR
+  // 2. User subscribed to this repo after lastSeenAt (all content from new repos is "new")
+  const isNew = (item: { date?: string; publishedAt?: string; repoId?: string }) => {
     if (!lastSeenAt) return true;
+
+    // Check if user subscribed to this repo after lastSeenAt
+    if (item.repoId) {
+      const repo = repos.find((r) =>
+        `${r.owner}/${r.name}`.toLowerCase() === item.repoId?.toLowerCase()
+      );
+      if (repo?.createdAt && new Date(repo.createdAt) > new Date(lastSeenAt)) {
+        return true;
+      }
+    }
+
+    // Otherwise, check if activity happened after lastSeenAt
     const activityDate = item.date ?? item.publishedAt;
     if (!activityDate) return false;
     return new Date(activityDate) > new Date(lastSeenAt);

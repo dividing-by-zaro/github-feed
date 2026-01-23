@@ -44,6 +44,7 @@ export class GitHubService {
       defaultBranch: data.default_branch,
       avatarUrl: data.owner.avatar_url,
       pushedAt: data.pushed_at ?? null,
+      starCount: data.stargazers_count,
     };
   }
 
