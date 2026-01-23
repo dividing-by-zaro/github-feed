@@ -8,6 +8,8 @@ A web app that monitors GitHub repositories and uses LLM to classify/summarize c
 
 - **Frontend**: React + Vite + TypeScript (`/client`)
 - **Backend**: Node.js + Express + TypeScript (`/server`)
+
+**IMPORTANT**: All TypeScript errors must be fixed before committing. The build will fail on Railway if there are any TS errors (unused imports, type mismatches, etc.).
 - **GitHub API**: Octokit
 - **LLM**: OpenAI API (gpt-4o-mini)
 - **Styling**: Tailwind CSS v4 (neo-brutalist design)

@@ -39,7 +39,7 @@ import ReportViewer from './ReportViewer';
 import LoginPage from './LoginPage';
 import MyReposPage from './MyReposPage';
 import MyReportsPage from './MyReportsPage';
-import { Plus, ChevronDown, LogOut, FolderGit2, FileText, Star, Book, ExternalLink } from 'lucide-react';
+import { Plus, ChevronDown, LogOut, FolderGit2, FileText, Star, Book } from 'lucide-react';
 
 export default function App() {
   const { user, isLoading: authLoading, logout } = useAuth();
