@@ -67,19 +67,21 @@ model GlobalRelease {
 }
 
 model GlobalRepo {
-  id            String          @id @default(cuid())
-  owner         String
-  name          String
-  url           String
-  description   String?
-  avatarUrl     String?
-  createdAt     DateTime        @default(now())
-  lastFetchedAt DateTime?
-  updates       GlobalUpdate[]
-  prs           GlobalPR[]
-  releases      GlobalRelease[]
-  userRepos     UserRepo[]
-  reports       Report[]
+  id              String          @id @default(cuid())
+  owner           String
+  name            String
+  url             String
+  description     String?
+  avatarUrl       String?
+  starCount       Int?
+  subscriberCount Int             @default(0)
+  createdAt       DateTime        @default(now())
+  lastFetchedAt   DateTime?
+  updates         GlobalUpdate[]
+  prs             GlobalPR[]
+  releases        GlobalRelease[]
+  userRepos       UserRepo[]
+  reports         Report[]
 
   @@unique([owner, name])
 }

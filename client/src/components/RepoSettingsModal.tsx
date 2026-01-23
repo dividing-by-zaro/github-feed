@@ -1,7 +1,26 @@
 import { useState } from 'react';
 import type { Repo } from '../types';
 import { getRepoColor } from '../utils/colors';
-import { X, Trash2, RefreshCw } from 'lucide-react';
+import { X, Trash2, RefreshCw, Clock } from 'lucide-react';
+
+// Format relative time (e.g., "2 hours ago", "3 days ago")
+function formatRelativeTime(dateString: string | null | undefined): string {
+  if (!dateString) return 'Never';
+
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+
+  return date.toLocaleDateString();
+}
 
 const COLOR_OPTIONS = [
   { color: '#6366f1', name: 'Indigo' },
@@ -36,7 +55,6 @@ export default function RepoSettingsModal({
     repo.customColor || getRepoColor(repo.id)
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -58,17 +76,12 @@ export default function RepoSettingsModal({
   };
 
   const handleRefresh = async () => {
-    if (!showRefreshConfirm) {
-      setShowRefreshConfirm(true);
-      return;
-    }
-
     setIsRefreshing(true);
     try {
       await onRefresh(repo.id);
       onClose();
     } catch (error) {
-      console.error('Failed to refresh repo:', error);
+      console.error('Failed to check for updates:', error);
     } finally {
       setIsRefreshing(false);
     }
@@ -132,6 +145,14 @@ export default function RepoSettingsModal({
             </div>
           </div>
 
+          {/* Last Indexed Info */}
+          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <Clock size={16} className="text-gray-500" />
+            <span className="text-sm text-gray-600">
+              Last indexed: <span className="font-medium text-gray-800">{formatRelativeTime(repo.lastFetchedAt)}</span>
+            </span>
+          </div>
+
           {/* Actions */}
           <div className="flex items-center justify-between pt-4 border-t-2 border-black/10">
             <div className="flex gap-2">
@@ -147,10 +168,10 @@ export default function RepoSettingsModal({
                 type="button"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className={`brutal-btn ${showRefreshConfirm ? 'bg-lavender border-lavender' : 'brutal-btn-secondary'} text-black`}
+                className="brutal-btn brutal-btn-secondary text-black"
               >
                 <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                {isRefreshing ? 'Refreshing...' : showRefreshConfirm ? 'Click to confirm' : 'Re-index'}
+                {isRefreshing ? 'Checking...' : 'Check for updates'}
               </button>
             </div>
 

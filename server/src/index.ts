@@ -14,6 +14,7 @@ import reposRouter from './routes/repos.js';
 import userRouter from './routes/user.js';
 import reportsRouter from './routes/reports.js';
 import { pool } from './db.js';
+import { initializeSweepScheduler } from './services/sweep.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,4 +89,7 @@ if (process.env.NODE_ENV === 'production') {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+
+  // Initialize the daily sweep scheduler
+  initializeSweepScheduler();
 });

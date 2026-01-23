@@ -82,7 +82,7 @@ github-feed/
 ## Database Schema
 
 **Global tables** (shared across all users):
-- `GlobalRepo` - Repo metadata, lastFetchedAt for staleness check
+- `GlobalRepo` - Repo metadata, `lastFetchedAt` for staleness check, `subscriberCount` for sweep prioritization, `starCount` for GitHub stars display
 - `GlobalUpdate` - Semantic updates (grouped PRs) with AI-generated summaries. Has `groupHash` field (SHA256 of sorted PR numbers) with unique constraint `[globalRepoId, groupHash]` to prevent duplicates.
 - `GlobalPR` - Individual PRs linked to their parent Update. Has unique constraint `[globalRepoId, prNumber]`.
 - `GlobalRelease` - Releases with AI-generated summaries
@@ -138,11 +138,13 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 - **lastFetchedAt**: `GlobalRepo.lastFetchedAt` tracks when repo was last checked for updates
 - **Incremental updates**: Only new PRs/releases (not already in database) are fetched and classified
 - **Load older updates**: `POST /repos/:id/fetch-recent` paginates backwards from oldest known PR, fetching 10 older PRs each time
+- **Daily sweep**: `node-cron` scheduler runs at 6am UTC, indexes top 100 repos by subscriber count. Sweep service in `server/src/services/sweep.ts` reuses existing classification pipeline. Subscriber counts backfilled on server startup.
 
 ## "New" Badge System & Inbox
 
 - **Session-based snapshots**: On first page load of a browser session, `user.lastSeenAt` is snapshotted to `sessionStorage` and server is updated to current time
 - **Activity date comparison**: "New" badges compare item's `date` (activity date for updates) or `publishedAt` (for releases) against session snapshot—NOT `createdAt` (indexing time). This prevents old PRs indexed by another user's report from appearing "new".
+- **New repo subscription handling**: Updates from repos subscribed after `lastSeenAt` are always shown as "new", ensuring newly-added repos show all their content in the inbox.
 - **Persistence within session**: Badges persist while navigating the site during same browser session; cleared when browser closes
 - **Storage key**: `lastSeenAt-{userId}` in sessionStorage
 - **New badge design**: Golden shimmer badge with sparkle icon, positioned on right side of UpdateCard next to star button
@@ -162,6 +164,7 @@ GITHUB_TOKEN=ghp_...   # Optional, for higher rate limits
 - **Two-row card layout**: Row 1 has avatar, name/owner, action buttons; Row 2 has stats with icons (PRs, dates, major counts)
 - **Quick actions**: Repos have GitHub link + Settings buttons; Reports have Download button (exports markdown)
 - **Clickable cards**: Cards navigate to repo feed or report view; delete handled in settings modal
+- **Repo settings modal**: Shows "Last indexed" timestamp, "Check for updates" button (non-destructive incremental refresh)
 
 ## Feed Filtering
 
@@ -183,7 +186,7 @@ Key endpoints in `server/src/routes/repos.ts`:
 - `GET /api/repos/search?q=...` - Autocomplete search for indexed repos (returns `isFollowed` flag)
 - `POST /api/repos` - Add repo (with robust URL parsing)
 - `GET /api/repos/feed/all` - Get all feed data, refreshes stale repos
-- `POST /api/repos/:id/refresh` - Delete all data for repo and re-index fresh (runs full LLM pipeline)
+- `POST /api/repos/:id/refresh` - Check for new updates since last fetch (incremental, runs in background)
 
 Reports endpoints in `server/src/routes/reports.ts`:
 - `GET /api/reports` - List user's reports

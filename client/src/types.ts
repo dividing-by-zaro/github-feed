@@ -70,6 +70,7 @@ export interface Repo {
   url: string;
   description?: string | null;
   avatarUrl?: string | null;
+  starCount?: number | null;
   // Custom settings
   displayName?: string | null;
   customColor?: string | null;

@@ -39,9 +39,10 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Manage Reports** | Stats dashboard (completed/in-progress/failed), card grid with download and quick view |
 | **Shared Indexing** | Repos indexed once, shared across all users for instant adds |
 | **Duplicate Prevention** | Hash-based deduplication prevents duplicate updates in feed |
-| **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) |
+| **Auto-Refresh** | Fetches new PRs/releases on page load (hourly) + daily background sweep |
 | **Load Older Updates** | Paginate backwards through PR history with clear "end of indexed" indicator |
-| **Re-index Repo** | Delete cached data and regenerate AI summaries from scratch |
+| **Check for Updates** | Manually trigger incremental update check for a repo |
+| **GitHub Stars** | Display repo star counts in feed header |
 | **Smart Autocomplete** | Search indexed repos when adding, with instant add for pre-indexed repos |
 | **Flexible URL Input** | Paste any GitHub URL format—extra paths, query params, etc. are handled |
 | **Background Indexing** | Repos index in background with progress shown in sidebar; no blocking modal |
@@ -108,12 +109,12 @@ Add these API keys to your server `.env` file:
 - [ ] User profile page
 - [ ] Show API usage to users ([spec](docs/llm-usage-tracking.md))
 - [x] Suggest already indexed repos when adding
-- [ ] Background cron job for repo updates (currently on-demand)
+- [x] Background cron job for repo updates (daily sweep at 6am UTC)
 - [ ] User repo semantic queries with questions like "When was support for guardrails added"?
 - [ ] Stripe integration for paid plans
 - [x] Semantic PR grouping (related PRs merged into single updates)
 - [x] Batched parallel LLM calls for faster indexing
-- [x] Per-repo "re-index" button to regenerate summaries from scratch
+- [x] Per-repo "check for updates" button for manual refresh
 - [x] Reports feature - generate summaries of repo changes over a date range
 - [x] Background repo indexing with progress in sidebar
 - [x] Non-blocking stale repo refresh (instant feed load)
