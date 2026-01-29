@@ -751,6 +751,7 @@ export default function App() {
                 <img
                   src={user.avatarUrl}
                   alt=""
+                  referrerPolicy="no-referrer"
                   className="w-7 h-7 rounded-full border-2 border-black"
                 />
               )}
@@ -948,6 +949,7 @@ export default function App() {
 
               {(viewMode === 'all' || selectedRepoId) && (
                 <AskBar
+                  key={selectedRepoId ?? 'all'}
                   repoName={
                     selectedRepoId
                       ? repos.find((r) => r.id === selectedRepoId)?.displayName ||
