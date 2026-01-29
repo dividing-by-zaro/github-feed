@@ -13,6 +13,7 @@ import authRouter from './routes/auth.js';
 import reposRouter from './routes/repos.js';
 import userRouter from './routes/user.js';
 import reportsRouter from './routes/reports.js';
+import askRouter from './routes/ask.js';
 import { pool } from './db.js';
 import { initializeSweepScheduler } from './services/sweep.js';
 
@@ -70,6 +71,7 @@ app.use('/auth', authRouter);
 app.use('/api/repos', reposRouter);
 app.use('/api/user', userRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/ask', askRouter);
 
 // Health check
 app.get('/health', (req, res) => {

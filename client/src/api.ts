@@ -199,3 +199,92 @@ export async function deleteReport(id: string): Promise<void> {
 export async function getReportMarkdown(id: string): Promise<{ markdown: string; filename: string }> {
   return apiFetch(`/api/reports/${encodeURIComponent(id)}/markdown`);
 }
+
+// ============ ASK FEED (SSE STREAMING) ============
+
+export function askFeed(
+  request: { question: string; globalRepoId?: string; timeRange: { start: string; end: string } },
+  handlers: {
+    onPhase?: (data: { phase: number; message: string }) => void;
+    onSelection?: (data: { repoIds: string[]; dateRange: { start: string; end: string } }) => void;
+    onChunk?: (data: { text: string }) => void;
+    onDone?: (data: { citedUpdateIds: string[] }) => void;
+    onError?: (data: { message: string }) => void;
+  }
+): AbortController {
+  const controller = new AbortController();
+
+  const run = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/ask`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Request failed' }));
+        handlers.onError?.({ message: err.error || 'Request failed' });
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        handlers.onError?.({ message: 'No response stream' });
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let currentEvent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? ''; // Keep incomplete last line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            switch (currentEvent) {
+              case 'phase':
+                handlers.onPhase?.(data);
+                break;
+              case 'selection':
+                handlers.onSelection?.(data);
+                break;
+              case 'chunk':
+                handlers.onChunk?.(data);
+                break;
+              case 'done':
+                handlers.onDone?.(data);
+                break;
+              case 'error':
+                handlers.onError?.(data);
+                break;
+            }
+            currentEvent = '';
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        handlers.onError?.({
+          message: err instanceof Error ? err.message : 'Stream failed',
+        });
+      }
+    }
+  };
+
+  run();
+  return controller;
+}

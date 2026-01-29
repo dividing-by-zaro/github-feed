@@ -11,7 +11,7 @@ A web app that monitors GitHub repositories and uses LLM to classify/summarize c
 
 **IMPORTANT**: All TypeScript errors must be fixed before committing. The build will fail on Railway if there are any TS errors (unused imports, type mismatches, etc.).
 - **GitHub API**: Octokit
-- **LLM**: OpenAI API (gpt-4o-mini)
+- **LLM**: OpenAI API (gpt-4o-mini for classification, gpt-5-mini + gpt-5.1 for Ask Feed)
 - **Styling**: Tailwind CSS v4 (neo-brutalist design)
 - **Icons**: lucide-react
 - **Database**: PostgreSQL (Railway) + Prisma 7
@@ -57,7 +57,8 @@ github-feed/
 │       ├── prompts/        # LLM prompts as markdown templates
 │       │   ├── loader.ts   # Handlebars-based prompt loader
 │       │   ├── classifier/ # PR grouping & summary prompts
-│       │   └── reports/    # Report generation prompts
+│       │   ├── reports/    # Report generation prompts
+│       │   └── ask/        # Ask Feed question/answer prompts
 │       ├── routes/         # Express routes (auth, repos, user)
 │       ├── services/       # GitHub & classifier services
 │       ├── env.ts          # Dotenv loader (must import first)
@@ -80,6 +81,7 @@ github-feed/
 - **Prompt templates**: LLM prompts stored as markdown files in `server/src/prompts/`, loaded via Handlebars for variable interpolation. Use `{{var}}` for escaped values, `{{{var}}}` for raw multi-line content, `{{#if var}}...{{/if}}` for conditionals.
 - **Background indexing**: Repo indexing runs asynchronously after `POST /api/repos` returns. `UserRepo.status` tracks state (`pending`, `indexing`, `completed`, `failed`), `progress` shows current step, `error` captures failures. Frontend polls `GET /api/repos/:id` every 2 seconds during indexing, similar to report generation. "Load older updates" also uses this pattern via `POST /api/repos/:id/fetch-recent`.
 - **Duplicate prevention**: Backend uses `groupHash` (SHA256 of sorted PR numbers) with upsert to prevent duplicate GlobalUpdate records. Frontend polling filters out existing update IDs before adding to state.
+- **Ask Feed (natural language queries)**: Two-phase LLM feature. Phase 1: `gpt-5-mini` selects relevant repos and narrows time range (skipped for single repo view). Phase 2: `gpt-5.1` streams an answer with `[[update:ID]]` citations. Uses Server-Sent Events (SSE) for real-time streaming — the only SSE endpoint in the codebase. Service in `server/src/services/askService.ts`, route in `server/src/routes/ask.ts`, prompts in `server/src/prompts/ask/`. Ephemeral (no persistence), standalone (no multi-turn). Frontend: `AskBar` component with time preset chips, `AskModal` with streaming markdown + cited UpdateCards.
 
 ## Database Schema
 
@@ -215,6 +217,9 @@ Reports endpoints in `server/src/routes/reports.ts`:
 - `GET /api/reports/:id` - Get report with status for polling
 - `DELETE /api/reports/:id` - Delete report
 - `GET /api/reports/:id/markdown` - Export report as markdown
+
+Ask Feed endpoint in `server/src/routes/ask.ts`:
+- `POST /api/ask` - SSE streaming endpoint. Body: `{ question, globalRepoId?, timeRange: { start, end } }`. Events: `phase`, `selection`, `chunk`, `done`, `error`
 
 ## URL Parsing
 

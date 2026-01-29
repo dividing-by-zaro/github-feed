@@ -178,3 +178,13 @@ export interface ReportContent {
 export interface ExecutiveSummaryResult {
   summary: string;
 }
+
+// ============ ASK FEED TYPES ============
+
+export interface SelectionResult {
+  repoIds: string[];
+  dateRange: {
+    start: string;
+    end: string;
+  };
+}

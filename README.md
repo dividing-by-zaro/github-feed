@@ -50,6 +50,7 @@ Perfect for teams tracking dependencies, educators monitoring teaching materials
 | **Non-blocking Feed Load** | Stale repos refresh in background; cached data loads instantly |
 | **Landing Page** | Feature preview videos showcasing repo updates and reports |
 | **Reports** | Generate AI summaries of repo changes over a date range, grouped by significance |
+| **Ask Feed** | Ask natural language questions about your repos — AI streams answers with citations to specific updates |
 | **Prompt Templates** | LLM prompts stored as editable markdown files with Handlebars templating |
 | **Neo-Brutalist Design** | Bold colors, thick borders, offset shadows via Tailwind CSS v4 |
 
@@ -96,7 +97,7 @@ Add these API keys to your server `.env` file:
 - **Backend:** Node.js + Express + TypeScript
 - **Database:** PostgreSQL (Railway) + Prisma 7
 - **Auth:** Google OAuth via Passport.js
-- **APIs:** GitHub (Octokit), OpenAI (gpt-4o-mini)
+- **APIs:** GitHub (Octokit), OpenAI (gpt-4o-mini, gpt-5-mini, gpt-5.1)
 
 ## Planned features
 
@@ -111,7 +112,7 @@ Add these API keys to your server `.env` file:
 - [ ] Show API usage to users ([spec](docs/llm-usage-tracking.md))
 - [x] Suggest already indexed repos when adding
 - [x] Background cron job for repo updates (daily sweep at 6am UTC)
-- [ ] User repo semantic queries with questions like "When was support for guardrails added"?
+- [x] Ask Feed — natural language questions about repo changes with streamed AI answers and citations
 - [ ] Stripe integration for paid plans
 - [x] Semantic PR grouping (related PRs merged into single updates)
 - [x] Batched parallel LLM calls for faster indexing

@@ -17,6 +17,7 @@ import {
   deleteReport as deleteReportApi,
   getReportMarkdown,
   getRepo,
+  askFeed,
 } from '../api';
 import type {
   Repo,
@@ -36,6 +37,8 @@ import RepoSettingsModal from './RepoSettingsModal';
 import ReleaseModal from './ReleaseModal';
 import CreateReportModal from './CreateReportModal';
 import ReportViewer from './ReportViewer';
+import AskBar from './AskBar';
+import AskModal from './AskModal';
 import LoginPage from './LoginPage';
 import MyReposPage from './MyReposPage';
 import MyReportsPage from './MyReportsPage';
@@ -66,6 +69,19 @@ export default function App() {
   // Polling interval refs for background processes
   const reportPollingRef = useRef<number | null>(null);
   const repoPollingRef = useRef<number | null>(null);
+
+  // Ask Feed state
+  const [askModalOpen, setAskModalOpen] = useState(false);
+  const [askState, setAskState] = useState({
+    question: '',
+    phase: 0,
+    phaseMessage: '',
+    streamedAnswer: '',
+    isDone: false,
+    error: null as string | null,
+    citedUpdateIds: [] as string[],
+  });
+  const askAbortRef = useRef<AbortController | null>(null);
 
   // Session-based lastSeenAt: snapshot user's lastSeenAt at session start
   // so "new" badges persist while navigating during the session
@@ -354,6 +370,81 @@ export default function App() {
       throw err;
     }
   };
+
+  // ============ ASK FEED HANDLER ============
+
+  const handleAskFeed = useCallback((question: string, timeRange: { start: string; end: string }) => {
+    // Reset state and open modal
+    setAskState({
+      question,
+      phase: 0,
+      phaseMessage: '',
+      streamedAnswer: '',
+      isDone: false,
+      error: null,
+      citedUpdateIds: [],
+    });
+    setAskModalOpen(true);
+
+    // Determine globalRepoId for single repo view
+    const selectedRepo = selectedRepoId
+      ? repos.find((r) => r.id === selectedRepoId)
+      : null;
+
+    const controller = askFeed(
+      {
+        question,
+        globalRepoId: selectedRepo?.globalRepoId,
+        timeRange,
+      },
+      {
+        onPhase: (data) => {
+          setAskState((prev) => ({
+            ...prev,
+            phase: data.phase,
+            phaseMessage: data.message,
+          }));
+        },
+        onSelection: () => {
+          // Selection info received — Phase 1 complete
+        },
+        onChunk: (data) => {
+          setAskState((prev) => ({
+            ...prev,
+            streamedAnswer: prev.streamedAnswer + data.text,
+          }));
+        },
+        onDone: (data) => {
+          setAskState((prev) => ({
+            ...prev,
+            isDone: true,
+            citedUpdateIds: data.citedUpdateIds,
+          }));
+        },
+        onError: (data) => {
+          setAskState((prev) => ({
+            ...prev,
+            error: data.message,
+          }));
+        },
+      }
+    );
+
+    askAbortRef.current = controller;
+  }, [selectedRepoId, repos]);
+
+  const handleCloseAskModal = useCallback(() => {
+    if (askAbortRef.current) {
+      askAbortRef.current.abort();
+      askAbortRef.current = null;
+    }
+    setAskModalOpen(false);
+  }, []);
+
+  const citedUpdates = useMemo(
+    () => updates.filter((u) => askState.citedUpdateIds.includes(u.id)),
+    [askState.citedUpdateIds, updates]
+  );
 
   // Poll for generating reports
   useEffect(() => {
@@ -855,6 +946,19 @@ export default function App() {
                 )}
               </div>
 
+              {(viewMode === 'all' || selectedRepoId) && (
+                <AskBar
+                  repoName={
+                    selectedRepoId
+                      ? repos.find((r) => r.id === selectedRepoId)?.displayName ||
+                        repos.find((r) => r.id === selectedRepoId)?.name
+                      : undefined
+                  }
+                  onSubmit={handleAskFeed}
+                  disabled={askModalOpen}
+                />
+              )}
+
               {isLoading || dataLoading ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-4">
                   <div className="w-12 h-12 border-4 border-gray-100 border-t-yellow rounded-full animate-spin" />
@@ -929,6 +1033,21 @@ export default function App() {
           onDownload={handleDownloadReport}
         />
       )}
+
+      <AskModal
+        isOpen={askModalOpen}
+        onClose={handleCloseAskModal}
+        question={askState.question}
+        phase={askState.phase}
+        phaseMessage={askState.phaseMessage}
+        streamedAnswer={askState.streamedAnswer}
+        isDone={askState.isDone}
+        error={askState.error}
+        citedUpdates={citedUpdates}
+        repos={repos}
+        starredIds={starredIds}
+        onToggleStar={handleToggleStar}
+      />
     </div>
   );
 }
